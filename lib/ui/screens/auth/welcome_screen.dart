@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:health_track_app/ui/screens/auth/login_screens.dart';
+import 'package:health_track_app/ui/screens/auth/registration_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({Key? key}) : super(key: key);
@@ -60,7 +61,12 @@ class WelcomeScreen extends StatelessWidget {
                     backgroundColor: Theme.of(context).primaryColor,
                   ),
                   onPressed: () {
-                    // TODO: Implement create account navigation
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RegistrationScreen(),
+                      ),
+                    );
                   },
                   child: const Text(
                     'CREATE ACCOUNT',
