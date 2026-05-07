@@ -1,6 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
-import 'package:health_track_app/ui/screens/auth/registration_screen.dart';
+import 'package:health_track_app/ui/screens/auth/about/about_screen.dart';
 
 class LoginScreens extends StatefulWidget {
   const LoginScreens({super.key});
@@ -84,8 +84,7 @@ class _LoginScreensState extends State<LoginScreens> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      const RegistrationScreen(),
+                                  builder: (context) => const AboutYouScreen(),
                                 ),
                               );
                             },
@@ -299,7 +298,7 @@ class _LoginScreensState extends State<LoginScreens> {
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) =>
-                                              const RegistrationScreen(),
+                                              const AboutYouScreen(),
                                         ),
                                       );
                                     },
