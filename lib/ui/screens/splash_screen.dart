@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:health_track_app/ui/screens/auth/welcome_screen.dart';
+import 'package:health_track_app/ui/screens/auth/onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -57,7 +57,10 @@ class _SplashScreenState extends State<SplashScreen>
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 650),
           pageBuilder: (context, animation, secondaryAnimation) =>
-              FadeTransition(opacity: animation, child: const WelcomeScreen()),
+              FadeTransition(
+                opacity: animation,
+                child: const OnboardingScreen(),
+              ),
         ),
       );
     });

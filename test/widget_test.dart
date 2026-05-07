@@ -22,6 +22,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 3400));
     await tester.pumpAndSettle();
 
-    expect(find.text('Hello !'), findsOneWidget);
+    expect(find.text('Track your health in one place'), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
   });
 }
