@@ -12,7 +12,6 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  firebase_core: ^2.25.0
 
   flutter_spinkit: ^5.2.0
   animate_do: ^5.1.0

@@ -1,6 +1,8 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:health_track_app/ui/screens/auth/about/about_screen.dart';
+import 'package:health_track_app/ui/screens/auth/forgot_passwords_screen.dart';
+import 'package:health_track_app/ui/screens/app_shell.dart';
 
 class LoginScreens extends StatefulWidget {
   const LoginScreens({super.key});
@@ -33,6 +35,11 @@ class _LoginScreensState extends State<LoginScreens> {
     await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
     setState(() => _isLoading = false);
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const AppShell()),
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Login flow is ready to connect.')),
@@ -217,7 +224,15 @@ class _LoginScreensState extends State<LoginScreens> {
                                   ),
                                   const Spacer(),
                                   TextButton(
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const ForgotPasswordScreen(),
+                                        ),
+                                      );
+                                    },
                                     child: const Text('Forgot?'),
                                   ),
                                 ],

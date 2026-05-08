@@ -42,9 +42,6 @@ post_install do |installer|
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-
-      # Fix BoringSSL-GRPC issue
-      config.build_settings['OTHER_CFLAGS'] = ['$(inherited)', '-fmodule-map-file=$(SRCROOT)/Flutter/Flutter.modulemap']
     end
   end
 end

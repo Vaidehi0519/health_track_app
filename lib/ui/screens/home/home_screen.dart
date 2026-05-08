@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:health_track_app/ui/screens/home/add_post_screen.dart';
+import 'package:health_track_app/ui/screens/home/comment_screen.dart';
 import 'package:health_track_app/ui/screens/home/widgets/postcard_widget.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -10,7 +11,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Map<String, dynamic>> _posts = const [
+  final List<Map<String, dynamic>> _posts = [
     {
       'username': 'Vaidehi',
       'description':
@@ -70,7 +71,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 14),
                   itemBuilder: (context, index) {
-                    return PostCard(snap: _posts[index]);
+                    return PostCard(
+                      snap: _posts[index],
+                      onComment: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                CommentScreen(post: _posts[index]),
+                          ),
+                        );
+                      },
+                    );
                   },
                 ),
               ),
@@ -87,11 +99,17 @@ class _HomeScreenState extends State<HomeScreen> {
           'Post',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final post = await Navigator.push<Map<String, dynamic>>(
             context,
             MaterialPageRoute(builder: (context) => const AddPostScreen()),
           );
+          if (post == null) return;
+          setState(() => _posts.insert(0, post));
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Update published')));
         },
       ),
     );
@@ -158,7 +176,13 @@ class _HomeHeader extends StatelessWidget {
             ),
           ),
           IconButton.filledTonal(
-            onPressed: () {},
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Open Alerts from the bottom tab'),
+                ),
+              );
+            },
             icon: const Icon(Icons.notifications_none_rounded),
             color: Colors.white,
             style: IconButton.styleFrom(

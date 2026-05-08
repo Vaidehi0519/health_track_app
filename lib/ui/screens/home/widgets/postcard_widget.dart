@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class PostCard extends StatelessWidget {
-  const PostCard({super.key, required this.snap});
+  const PostCard({super.key, required this.snap, this.onComment});
 
   final Map<String, dynamic> snap;
+  final VoidCallback? onComment;
 
   @override
   Widget build(BuildContext context) {
@@ -117,6 +118,7 @@ class PostCard extends StatelessWidget {
                 _PostAction(
                   icon: Icons.mode_comment_outlined,
                   label: '$commentsCount',
+                  onTap: onComment,
                 ),
                 const Spacer(),
                 const _PostAction(icon: Icons.share_rounded, label: 'Share'),
@@ -146,33 +148,38 @@ class PostCard extends StatelessWidget {
 }
 
 class _PostAction extends StatelessWidget {
-  const _PostAction({required this.icon, required this.label});
+  const _PostAction({required this.icon, required this.label, this.onTap});
 
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5FAFC),
+    return Material(
+      color: const Color(0xFFF5FAFC),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
         borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: const Color(0xFF607080)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF607080),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF607080)),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF607080),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -41,6 +41,20 @@ class _AddPostScreenState extends State<AddPostScreen> {
     ).showSnackBar(const SnackBar(content: Text('Post UI preview is ready.')));
   }
 
+  void _publishPost() {
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
+
+    Navigator.pop<Map<String, dynamic>>(context, {
+      'username': 'Vaidehi',
+      'description': _postController.text.trim(),
+      'metric': _selectedMood,
+      'datePublished': 'Just now',
+      'likes': 0,
+      'commentsCount': 0,
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -186,7 +200,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
                               alpha: 0.28,
                             ),
                           ),
-                          onPressed: _isPreviewing ? null : _previewPost,
+                          onPressed: _isPreviewing ? null : _publishPost,
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 220),
                             child: _isPreviewing
@@ -204,14 +218,14 @@ class _AddPostScreenState extends State<AddPostScreen> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        'Preview update',
+                                        'Publish update',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w900,
                                         ),
                                       ),
                                       SizedBox(width: 10),
-                                      Icon(Icons.visibility_rounded, size: 19),
+                                      Icon(Icons.send_rounded, size: 19),
                                     ],
                                   ),
                           ),

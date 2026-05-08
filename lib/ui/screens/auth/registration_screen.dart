@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:health_track_app/ui/screens/app_shell.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -47,6 +48,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Welcome, ${_nameController.text.trim()}!')),
+    );
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const AppShell()),
+      (route) => false,
     );
   }
 
