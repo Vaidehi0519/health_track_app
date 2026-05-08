@@ -8,10 +8,13 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:health_track_app/core/session_store.dart';
 import 'package:health_track_app/main.dart';
 
 void main() {
   testWidgets('shows animated splash screen', (WidgetTester tester) async {
+    await SessionStore.setLoggedIn(false);
+
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 
@@ -20,9 +23,11 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 3400));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 700));
 
     expect(find.text('Track your health in one place'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

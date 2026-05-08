@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:health_track_app/core/session_store.dart';
+import 'package:health_track_app/ui/screens/auth/welcome_screen.dart';
 import 'package:health_track_app/ui/screens/profile/edit_profilescreen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -83,6 +85,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ).showSnackBar(SnackBar(content: Text('$feature coming soon')));
   }
 
+  Future<void> _logout() async {
+    await SessionStore.setLoggedIn(false);
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -107,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 case _ProfileMenuAction.reset:
                   _resetProgress();
                 case _ProfileMenuAction.logout:
-                  _showComingSoon('Logout');
+                  _logout();
               }
             },
             itemBuilder: (context) => const [

@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:health_track_app/core/session_store.dart';
 import 'package:health_track_app/ui/screens/app_shell.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -43,6 +44,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     setState(() => _isCreatingAccount = true);
     await Future.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    await SessionStore.setLoggedIn(true);
     if (!mounted) return;
     setState(() => _isCreatingAccount = false);
 

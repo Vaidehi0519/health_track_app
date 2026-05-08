@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:health_track_app/core/session_store.dart';
 import 'package:health_track_app/ui/screens/auth/about/about_screen.dart';
 import 'package:health_track_app/ui/screens/auth/forgot_passwords_screen.dart';
 import 'package:health_track_app/ui/screens/app_shell.dart';
@@ -33,6 +34,8 @@ class _LoginScreensState extends State<LoginScreens> {
 
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    await SessionStore.setLoggedIn(_rememberMe);
     if (!mounted) return;
     setState(() => _isLoading = false);
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:health_track_app/ui/screens/diary/diary_screen.dart';
 import 'package:health_track_app/ui/screens/home/home_screen.dart';
+import 'package:health_track_app/ui/screens/messages/message_screen.dart';
 import 'package:health_track_app/ui/screens/notifications_screen.dart';
 import 'package:health_track_app/ui/screens/profile/profile_screen.dart';
 
@@ -17,6 +18,7 @@ class _AppShellState extends State<AppShell> {
   late final List<Widget> _screens = const [
     HomeScreen(),
     DiaryScreen(),
+    MessageScreen(),
     NotificationScreen(),
     ProfileScreen(uid: 'demo-user'),
   ];
@@ -40,6 +42,11 @@ class _AppShellState extends State<AppShell> {
             icon: Icon(Icons.book_outlined),
             selectedIcon: Icon(Icons.book_rounded),
             label: 'Diary',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline_rounded),
+            selectedIcon: Icon(Icons.chat_bubble_rounded),
+            label: 'Messages',
           ),
           NavigationDestination(
             icon: Icon(Icons.notifications_none_rounded),

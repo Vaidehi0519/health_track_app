@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:health_track_app/core/session_store.dart';
 import 'package:health_track_app/ui/screens/auth/onboarding/onboarding_screen.dart';
+import 'package:health_track_app/ui/screens/app_shell.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -51,7 +53,9 @@ class _SplashScreenState extends State<SplashScreen>
       curve: const Interval(0.46, 1, curve: Curves.easeOut),
     );
 
-    Future.delayed(const Duration(milliseconds: 3300), () {
+    Future.delayed(const Duration(milliseconds: 3300), () async {
+      if (!mounted) return;
+      final isLoggedIn = await SessionStore.isLoggedIn();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -59,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen>
           pageBuilder: (context, animation, secondaryAnimation) =>
               FadeTransition(
                 opacity: animation,
-                child: const OnboardingScreen(),
+                child: isLoggedIn ? const AppShell() : const OnboardingScreen(),
               ),
         ),
       );
