@@ -12,8 +12,11 @@ class WaterStatsScreen extends StatefulWidget {
 
 class _WaterStatsScreenState extends State<WaterStatsScreen> {
   int _totalMl = 1750;
-
   static const String waterKey = 'total_water_ml';
+  final int _dailyGoal = 2500;
+
+  double get _progressValue => _totalMl / _dailyGoal;
+  int get _remainingMl => (_dailyGoal - _totalMl).clamp(0, _dailyGoal);
 
   Future<void> _loadWaterData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -55,9 +58,11 @@ class _WaterStatsScreenState extends State<WaterStatsScreen> {
         SizedBox(height: 16),
         DiaryProgressPanel(
           title: 'Daily Goal',
-          value: 0.70,
+          value: _progressValue,
           color: Color(0xFF1397E5),
-          caption: '750 ml remaining',
+          caption: _remainingMl == 0
+              ? 'Daily goal achieved 🎉'
+              : '$_remainingMl ml remaining',
         ),
         SizedBox(height: 16),
         DiaryLineChart(
