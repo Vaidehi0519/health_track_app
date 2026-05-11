@@ -12,6 +12,7 @@ import 'package:health_track_app/ui/screens/diary/water/add_water_screen.dart';
 import 'package:health_track_app/ui/screens/diary/water/water_stats_screen.dart';
 import 'package:health_track_app/ui/screens/diary/weight/add_weight_screen.dart';
 import 'package:health_track_app/ui/screens/diary/weight/weight_stats_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DiaryScreen extends StatefulWidget {
   const DiaryScreen({super.key});
@@ -31,6 +32,22 @@ class _DiaryScreenState extends State<DiaryScreen> {
   int _heartRate = 76;
   int _sleepMinutes = 470;
   double _weight = 57.8;
+
+  static const String waterKey = 'total_water_ml';
+
+  Future<void> _loadWaterData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      _waterMl = prefs.getInt(waterKey) ?? 1750;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWaterData();
+  }
 
   bool get _isToday {
     final now = DateTime.now();
@@ -109,21 +126,40 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   children: _DiaryAction.values.map((action) {
                     return _QuickActionButton(
                       action: action,
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(context);
+
                         switch (action) {
                           case _DiaryAction.water:
-                            _openScreen(const AddWaterScreen());
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AddWaterScreen(),
+                              ),
+                            );
+
+                            await _loadWaterData();
+                            break;
+
                           case _DiaryAction.meal:
                             _openScreen(const AddMealScreen());
+                            break;
+
                           case _DiaryAction.steps:
                             _quickAdd(action);
+                            break;
+
                           case _DiaryAction.heart:
                             _openScreen(const MeassureBPMScreen());
+                            break;
+
                           case _DiaryAction.sleep:
                             _openScreen(const RecordSleepScreen());
+                            break;
+
                           case _DiaryAction.weight:
                             _openScreen(const AddWeightScreen());
+                            break;
                         }
                       },
                     );
@@ -178,7 +214,8 @@ class _DiaryScreenState extends State<DiaryScreen> {
                             const SizedBox(height: 14),
                             _WaterCard(
                               liters: waterLiters,
-                              progress: _waterMl / 2500,
+                              //progress: _waterMl / 2500,
+                              progress: (_waterMl / 2500).clamp(0.0, 1.0),
                               onTap: () =>
                                   _openScreen(const WaterStatsScreen()),
                             ),
