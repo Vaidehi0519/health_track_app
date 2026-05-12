@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:health_track_app/ui/screens/diary/widgets/diary_ui.dart';
+import 'package:health_track_app/widgets/water_storage_service.dart';
 
 class AddWaterScreen extends StatefulWidget {
   const AddWaterScreen({super.key});
@@ -30,18 +31,16 @@ class _AddWaterScreenState extends State<AddWaterScreen> {
 
   // LOAD SAVED DATA
   Future<void> _loadWaterData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final water = await WaterStorageService.loadWater();
 
     setState(() {
-      _totalMl = prefs.getInt(waterKey) ?? 1750;
+      _totalMl = water;
     });
   }
 
   // SAVE DATA
   Future<void> _saveWaterData() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setInt(waterKey, _totalMl);
+    await WaterStorageService.saveWater(_totalMl);
   }
 
   void _addWater() async {

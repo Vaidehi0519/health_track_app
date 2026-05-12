@@ -12,6 +12,7 @@ import 'package:health_track_app/ui/screens/diary/water/add_water_screen.dart';
 import 'package:health_track_app/ui/screens/diary/water/water_stats_screen.dart';
 import 'package:health_track_app/ui/screens/diary/weight/add_weight_screen.dart';
 import 'package:health_track_app/ui/screens/diary/weight/weight_stats_screen.dart';
+import 'package:health_track_app/widgets/water_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DiaryScreen extends StatefulWidget {
@@ -36,10 +37,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
   static const String waterKey = 'total_water_ml';
 
   Future<void> _loadWaterData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final water = await WaterStorageService.loadWater();
 
     setState(() {
-      _waterMl = prefs.getInt(waterKey) ?? 1750;
+      _waterMl = water;
     });
   }
 
@@ -94,8 +95,13 @@ class _DiaryScreenState extends State<DiaryScreen> {
     ).showSnackBar(SnackBar(content: Text('${action.label} updated')));
   }
 
-  void _openScreen(Widget screen) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+  Future<void> _openScreen(Widget screen) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+
+    await _loadWaterData();
   }
 
   void _showQuickAddSheet() {

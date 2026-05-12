@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:health_track_app/ui/screens/diary/water/add_water_screen.dart';
 import 'package:health_track_app/ui/screens/diary/widgets/diary_ui.dart';
+import 'package:health_track_app/widgets/water_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WaterStatsScreen extends StatefulWidget {
@@ -19,10 +20,10 @@ class _WaterStatsScreenState extends State<WaterStatsScreen> {
   int get _remainingMl => (_dailyGoal - _totalMl).clamp(0, _dailyGoal);
 
   Future<void> _loadWaterData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final water = await WaterStorageService.loadWater();
 
     setState(() {
-      _totalMl = prefs.getInt(waterKey) ?? 1750;
+      _totalMl = water;
     });
   }
 
