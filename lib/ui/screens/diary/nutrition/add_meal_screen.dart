@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:health_track_app/data/models/meal_model.dart';
+import 'package:health_track_app/data/services/meals_storage_service.dart';
 import 'package:health_track_app/ui/screens/diary/widgets/diary_ui.dart';
 
 class AddMealScreen extends StatefulWidget {
@@ -27,9 +29,30 @@ class _AddMealScreenState extends State<AddMealScreen> {
     super.dispose();
   }
 
-  void _saveMeal() {
+  Future<void> _saveMeal() async {
+    if (_mealController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter food name')));
+      return;
+    }
+
+    final meal = MealModel(
+      name: _mealController.text.trim(),
+      calories: int.tryParse(_calorieController.text) ?? 0,
+      protein: int.tryParse(_proteinController.text) ?? 0,
+      carbs: int.tryParse(_carbsController.text) ?? 0,
+      fat: int.tryParse(_fatController.text) ?? 0,
+      createdAt: DateTime.now(),
+    );
+
+    await MealStorageService.saveMeal(meal);
+
+    if (!mounted) return;
+
     showDiarySavedMessage(context, '${widget.title} saved');
-    Navigator.pop(context);
+
+    Navigator.pop(context, true);
   }
 
   @override

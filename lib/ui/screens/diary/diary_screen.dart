@@ -1,7 +1,8 @@
-import 'dart:math' as math;
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:health_track_app/core/state/app_scope.dart';
+import 'package:health_track_app/core/theme/app_theme.dart';
+import 'package:health_track_app/core/utils/app_feedback.dart';
 import 'package:health_track_app/ui/screens/diary/heart/heart_stats_screen.dart';
 import 'package:health_track_app/ui/screens/diary/heart/meassure_bpm_screen.dart';
 import 'package:health_track_app/ui/screens/diary/nutrition/add_meal_screen.dart';
@@ -12,8 +13,6 @@ import 'package:health_track_app/ui/screens/diary/water/add_water_screen.dart';
 import 'package:health_track_app/ui/screens/diary/water/water_stats_screen.dart';
 import 'package:health_track_app/ui/screens/diary/weight/add_weight_screen.dart';
 import 'package:health_track_app/ui/screens/diary/weight/weight_stats_screen.dart';
-import 'package:health_track_app/widgets/water_storage_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class DiaryScreen extends StatefulWidget {
   const DiaryScreen({super.key});
@@ -24,31 +23,6 @@ class DiaryScreen extends StatefulWidget {
 
 class _DiaryScreenState extends State<DiaryScreen> {
   DateTime _selectedDate = DateTime.now();
-  int _steps = 8240;
-  int _waterMl = 1750;
-  int _calories = 1560;
-  int _carbs = 185;
-  int _fat = 46;
-  int _protein = 82;
-  int _heartRate = 76;
-  int _sleepMinutes = 470;
-  double _weight = 57.8;
-
-  static const String waterKey = 'total_water_ml';
-
-  Future<void> _loadWaterData() async {
-    final water = await WaterStorageService.loadWater();
-
-    setState(() {
-      _waterMl = water;
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWaterData();
-  }
 
   bool get _isToday {
     final now = DateTime.now();
@@ -69,46 +43,44 @@ class _DiaryScreenState extends State<DiaryScreen> {
     setState(() => _selectedDate = newDate);
   }
 
-  void _quickAdd(_DiaryAction action) {
-    setState(() {
-      switch (action) {
-        case _DiaryAction.water:
-          _waterMl = (_waterMl + 250).clamp(0, 4000);
-        case _DiaryAction.meal:
-          _calories += 320;
-          _carbs += 36;
-          _fat += 10;
-          _protein += 18;
-        case _DiaryAction.steps:
-          _steps += 1000;
-        case _DiaryAction.heart:
-          _heartRate = 74 + math.Random().nextInt(10);
-        case _DiaryAction.sleep:
-          _sleepMinutes = (_sleepMinutes + 30).clamp(0, 720);
-        case _DiaryAction.weight:
-          _weight = double.parse((_weight + 0.1).toStringAsFixed(1));
-      }
-    });
+  Future<void> _quickAdd(_DiaryAction action) async {
+    final appState = AppScope.of(context);
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('${action.label} updated')));
+    switch (action) {
+      case _DiaryAction.water:
+        await appState.addWater(250);
+      case _DiaryAction.meal:
+        appState.addMeal(calories: 320, carbs: 36, fat: 10, protein: 18);
+      case _DiaryAction.steps:
+        appState.addSteps();
+      case _DiaryAction.heart:
+        appState.recordHeartSample();
+      case _DiaryAction.sleep:
+        appState.addSleepMinutes();
+      case _DiaryAction.weight:
+        appState.addWeightSample();
+    }
+
+    if (!mounted) return;
+    AppFeedback.showSnackBar(context, '${action.label} updated');
   }
 
   Future<void> _openScreen(Widget screen) async {
+    final appState = AppScope.of(context);
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
 
-    await _loadWaterData();
+    await appState.refreshWater();
   }
 
   void _showQuickAddSheet() {
+    final appState = AppScope.of(context);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -144,7 +116,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                               ),
                             );
 
-                            await _loadWaterData();
+                            await appState.refreshWater();
                             break;
 
                           case _DiaryAction.meal:
@@ -182,11 +154,12 @@ class _DiaryScreenState extends State<DiaryScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final waterLiters = (_waterMl / 1000).toStringAsFixed(2);
-    final sleepHours = '${_sleepMinutes ~/ 60}h ${_sleepMinutes % 60}m';
+    final metrics = AppScope.of(context).metrics;
+    final waterLiters = (metrics.waterMl / 1000).toStringAsFixed(2);
+    final sleepHours =
+        '${metrics.sleepMinutes ~/ 60}h ${metrics.sleepMinutes % 60}m';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FBFD),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -196,6 +169,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 child: _DiaryHeader(
                   selectedDate: _selectedDate,
                   isToday: _isToday,
+                  progress: metrics.targetCompletion,
                   onPickDate: _pickDate,
                 ),
               ),
@@ -204,7 +178,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
               sliver: SliverList(
                 delegate: SliverChildListDelegate.fixed([
-                  _ActivityCard(steps: _steps),
+                  _ActivityCard(steps: metrics.steps),
                   const SizedBox(height: 14),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,15 +187,17 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         child: Column(
                           children: [
                             _HeartCard(
-                              heartRate: _heartRate,
+                              heartRate: metrics.heartRate,
                               onTap: () =>
                                   _openScreen(const HeartStatsScreen()),
                             ),
                             const SizedBox(height: 14),
                             _WaterCard(
                               liters: waterLiters,
-                              //progress: _waterMl / 2500,
-                              progress: (_waterMl / 2500).clamp(0.0, 1.0),
+                              progress: (metrics.waterMl / 2500).clamp(
+                                0.0,
+                                1.0,
+                              ),
                               onTap: () =>
                                   _openScreen(const WaterStatsScreen()),
                             ),
@@ -233,10 +209,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         child: Column(
                           children: [
                             _CaloriesCard(
-                              calories: _calories,
-                              carbs: _carbs,
-                              fat: _fat,
-                              protein: _protein,
+                              calories: metrics.calories,
+                              carbs: metrics.carbs,
+                              fat: metrics.fat,
+                              protein: metrics.protein,
                               onTap: () => _openScreen(
                                 CaloriesStatsScreen(date: _selectedDate),
                               ),
@@ -254,7 +230,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                   ),
                   const SizedBox(height: 14),
                   _WeightCard(
-                    weight: _weight,
+                    weight: metrics.weight,
                     onTap: () => _openScreen(const WeightStatsScreen()),
                   ),
                   const SizedBox(height: 14),
@@ -279,11 +255,13 @@ class _DiaryHeader extends StatelessWidget {
   const _DiaryHeader({
     required this.selectedDate,
     required this.isToday,
+    required this.progress,
     required this.onPickDate,
   });
 
   final DateTime selectedDate;
   final bool isToday;
+  final double progress;
   final VoidCallback onPickDate;
 
   @override
@@ -345,14 +323,14 @@ class _DiaryHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               minHeight: 9,
-              value: 0.72,
+              value: progress,
               backgroundColor: Colors.white.withValues(alpha: 0.22),
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '72% of today\'s wellness targets complete',
+            '${(progress * 100).round()}% of today\'s wellness targets complete',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.84),
               fontWeight: FontWeight.w600,
@@ -671,11 +649,11 @@ class _InsightPanel extends StatelessWidget {
             child: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
               'You are close to your hydration goal. Add one more glass before dinner.',
               style: TextStyle(
-                color: Color(0xFF061A3A),
+                color: Theme.of(context).colorScheme.onSurface,
                 height: 1.35,
                 fontWeight: FontWeight.w700,
               ),
@@ -697,7 +675,7 @@ class _DiaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         onTap: onTap,
@@ -707,10 +685,14 @@ class _DiaryCard extends StatelessWidget {
           padding: EdgeInsets.all(compact ? 14 : 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE2EEF3)),
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : AppColors.border,
+            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF061A3A).withValues(alpha: 0.04),
+                color: AppColors.ink.withValues(alpha: 0.04),
                 blurRadius: 18,
                 offset: const Offset(0, 10),
               ),
@@ -745,8 +727,8 @@ class _CardTitle extends StatelessWidget {
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF061A3A),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
@@ -757,8 +739,10 @@ class _CardTitle extends StatelessWidget {
             padding: const EdgeInsets.only(right: 8),
             child: Text(
               trailing!,
-              style: const TextStyle(
-                color: Color(0xFF81909D),
+              style: TextStyle(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.56),
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
@@ -809,16 +793,18 @@ class _ProgressRing extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF061A3A),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               Text(
                 caption,
-                style: const TextStyle(
-                  color: Color(0xFF81909D),
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.56),
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -854,8 +840,10 @@ class _MiniMetric extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFF607080),
+          style: TextStyle(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.62),
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),
@@ -863,8 +851,8 @@ class _MiniMetric extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            color: Color(0xFF061A3A),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -889,8 +877,8 @@ class _ValueWithUnit extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF061A3A),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 24,
               fontWeight: FontWeight.w900,
             ),
@@ -901,8 +889,10 @@ class _ValueWithUnit extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 3),
           child: Text(
             unit,
-            style: const TextStyle(
-              color: Color(0xFF81909D),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.56),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -923,14 +913,20 @@ class _MacroChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FBFD),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2EEF3)),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppColors.border,
+        ),
       ),
       child: Text(
         '$label $value',
-        style: const TextStyle(
-          color: Color(0xFF607080),
+        style: TextStyle(
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.62),
           fontSize: 11,
           fontWeight: FontWeight.w800,
         ),
@@ -964,8 +960,8 @@ class _QuickActionButton extends StatelessWidget {
             Text(
               action.label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF061A3A),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w900,
               ),
             ),

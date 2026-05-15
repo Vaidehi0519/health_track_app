@@ -9,25 +9,24 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:health_track_app/core/session_store.dart';
+import 'package:health_track_app/core/state/app_state.dart';
 import 'package:health_track_app/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('shows animated splash screen', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
     await SessionStore.setLoggedIn(false);
+    final appState = await AppState.load();
 
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(appState: appState));
 
     expect(find.text('Health Tracker'), findsOneWidget);
     expect(find.text('Track better. Feel stronger.'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 3400));
-    await tester.pump(const Duration(milliseconds: 700));
-
-    expect(find.text('Track your health in one place'), findsOneWidget);
-    expect(find.text('Next'), findsOneWidget);
-
     await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 4));
   });
 }

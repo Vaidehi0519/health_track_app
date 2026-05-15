@@ -1,72 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:health_track_app/core/state/app_scope.dart';
 import 'package:health_track_app/ui/screens/diary/water/add_water_screen.dart';
 import 'package:health_track_app/ui/screens/diary/widgets/diary_ui.dart';
-import 'package:health_track_app/widgets/water_storage_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class WaterStatsScreen extends StatefulWidget {
+class WaterStatsScreen extends StatelessWidget {
   const WaterStatsScreen({super.key});
 
   @override
-  State<WaterStatsScreen> createState() => _WaterStatsScreenState();
-}
-
-class _WaterStatsScreenState extends State<WaterStatsScreen> {
-  int _totalMl = 1750;
-  static const String waterKey = 'total_water_ml';
-  final int _dailyGoal = 2500;
-
-  double get _progressValue => _totalMl / _dailyGoal;
-  int get _remainingMl => (_dailyGoal - _totalMl).clamp(0, _dailyGoal);
-
-  Future<void> _loadWaterData() async {
-    final water = await WaterStorageService.loadWater();
-
-    setState(() {
-      _totalMl = water;
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWaterData();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final totalMl = AppScope.of(context).metrics.waterMl;
+    const dailyGoal = 2500;
+    final progressValue = totalMl / dailyGoal;
+    final remainingMl = (dailyGoal - totalMl).clamp(0, dailyGoal);
+
     return DiaryPageScaffold(
       title: 'Water Stats',
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
+          final appState = AppScope.of(context);
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddWaterScreen()),
           );
 
-          _loadWaterData();
+          await appState.refreshWater();
         },
         child: const Icon(Icons.add_rounded),
       ),
       children: [
         DiaryMetricHeader(
           icon: Icons.water_drop_rounded,
-          color: Color(0xFF1397E5),
+          color: const Color(0xFF1397E5),
           title: 'Today',
-          value: '${(_totalMl / 1000).toStringAsFixed(2)} ltr',
-          subtitle: '70% of your daily target',
+          value: '${(totalMl / 1000).toStringAsFixed(2)} ltr',
+          subtitle:
+              '${(progressValue.clamp(0, 1) * 100).round()}% of your daily target',
         ),
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
         DiaryProgressPanel(
           title: 'Daily Goal',
-          value: _progressValue,
-          color: Color(0xFF1397E5),
-          caption: _remainingMl == 0
+          value: progressValue,
+          color: const Color(0xFF1397E5),
+          caption: remainingMl == 0
               ? 'Daily goal achieved 🎉'
-              : '$_remainingMl ml remaining',
+              : '$remainingMl ml remaining',
         ),
-        SizedBox(height: 16),
-        DiaryLineChart(
+        const SizedBox(height: 16),
+        const DiaryLineChart(
           color: Color(0xFF1397E5),
           points: [0.72, 0.62, 0.48, 0.38, 0.30, 0.44, 0.28],
         ),

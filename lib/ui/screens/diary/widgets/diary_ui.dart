@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:health_track_app/core/theme/app_theme.dart';
 
-const diaryBackground = Color(0xFFF7FBFD);
-const diaryText = Color(0xFF061A3A);
-const diaryMutedText = Color(0xFF607080);
-const diaryBorder = Color(0xFFE2EEF3);
+const diaryBackground = AppColors.surface;
+const diaryText = AppColors.ink;
+const diaryMutedText = AppColors.muted;
+const diaryBorder = AppColors.border;
 
 class DiaryPageScaffold extends StatelessWidget {
   const DiaryPageScaffold({
@@ -22,11 +23,8 @@ class DiaryPageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: diaryBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: diaryBackground,
-        elevation: 0,
-        centerTitle: true,
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
         actions: actions,
       ),
@@ -53,9 +51,13 @@ class DiaryPanel extends StatelessWidget {
       width: double.infinity,
       padding: padding ?? const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: diaryBorder),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : diaryBorder,
+        ),
         boxShadow: [
           BoxShadow(
             color: diaryText.withValues(alpha: 0.04),
@@ -106,24 +108,28 @@ class DiaryMetricHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: diaryMutedText,
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.62),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
-                    color: diaryText,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: diaryMutedText,
+                  style: TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.62),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -161,16 +167,18 @@ class DiaryStatTile extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             label,
-            style: const TextStyle(
-              color: diaryMutedText,
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.62),
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              color: diaryText,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
@@ -203,8 +211,8 @@ class DiaryProgressPanel extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: diaryText,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
@@ -222,8 +230,10 @@ class DiaryProgressPanel extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             caption,
-            style: const TextStyle(
-              color: diaryMutedText,
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.62),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -301,15 +311,6 @@ class DiaryNumberField extends StatelessWidget {
         suffixText: suffix,
         prefixIcon: icon == null ? null : Icon(icon),
         filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: diaryBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: diaryBorder),
-        ),
       ),
     );
   }

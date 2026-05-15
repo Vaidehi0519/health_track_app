@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:health_track_app/core/state/app_scope.dart';
+import 'package:health_track_app/core/utils/app_feedback.dart';
 import 'package:health_track_app/ui/screens/diary/widgets/diary_ui.dart';
-import 'package:health_track_app/widgets/water_storage_service.dart';
 
 class AddWaterScreen extends StatefulWidget {
   const AddWaterScreen({super.key});
@@ -13,50 +13,33 @@ class AddWaterScreen extends StatefulWidget {
 class _AddWaterScreenState extends State<AddWaterScreen> {
   final _amountController = TextEditingController(text: '250');
 
-  int _totalMl = 1750;
-
-  static const String waterKey = 'total_water_ml';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWaterData();
-  }
-
   @override
   void dispose() {
     _amountController.dispose();
     super.dispose();
   }
 
-  // LOAD SAVED DATA
-  Future<void> _loadWaterData() async {
-    final water = await WaterStorageService.loadWater();
-
-    setState(() {
-      _totalMl = water;
-    });
-  }
-
-  // SAVE DATA
-  Future<void> _saveWaterData() async {
-    await WaterStorageService.saveWater(_totalMl);
-  }
-
   void _addWater() async {
     final amount = int.tryParse(_amountController.text.trim()) ?? 0;
+    if (amount <= 0) {
+      AppFeedback.showSnackBar(
+        context,
+        'Enter a water amount greater than zero',
+        icon: Icons.error_rounded,
+      );
+      return;
+    }
 
-    setState(() {
-      _totalMl = (_totalMl + amount).clamp(0, 5000);
-    });
-
-    await _saveWaterData();
-
+    await AppScope.of(context).addWater(amount);
+    if (!mounted) return;
     showDiarySavedMessage(context, 'Water added');
+    Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
+    final totalMl = AppScope.of(context).metrics.waterMl;
+
     return DiaryPageScaffold(
       title: 'Add Water',
       children: [
@@ -64,7 +47,7 @@ class _AddWaterScreenState extends State<AddWaterScreen> {
           icon: Icons.water_drop_rounded,
           color: const Color(0xFF1397E5),
           title: 'Current intake',
-          value: '${(_totalMl / 1000).toStringAsFixed(2)} ltr',
+          value: '${(totalMl / 1000).toStringAsFixed(2)} ltr',
           subtitle: 'Goal: 2.5 ltr',
         ),
 

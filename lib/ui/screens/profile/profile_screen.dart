@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:health_track_app/core/session_store.dart';
+import 'package:health_track_app/core/state/app_scope.dart';
+import 'package:health_track_app/core/theme/app_theme.dart';
+import 'package:health_track_app/core/utils/app_feedback.dart';
 import 'package:health_track_app/ui/screens/auth/welcome_screen.dart';
 import 'package:health_track_app/ui/screens/profile/edit_profilescreen.dart';
+import 'package:health_track_app/ui/screens/settings/setting_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, required this.uid});
@@ -17,7 +21,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _bio = 'Building healthier routines one small win at a time.';
   String _goal = 'Weekly wellness goal';
   double _goalProgress = 0.68;
-  int _waterCups = 6;
   int _workoutMinutes = 42;
   int _caloriesBurned = 420;
 
@@ -42,16 +45,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Profile updated')));
+    AppFeedback.showSnackBar(context, 'Profile updated');
   }
 
-  void _addWaterCup() {
-    setState(() {
-      _waterCups = (_waterCups + 1).clamp(0, 12);
-      _goalProgress = (_goalProgress + 0.04).clamp(0, 1);
-    });
+  Future<void> _addWaterCup() async {
+    await AppScope.of(context).addWater(250);
+    setState(() => _goalProgress = (_goalProgress + 0.04).clamp(0, 1));
+    if (!mounted) return;
+    AppFeedback.showSnackBar(context, 'Water cup added');
   }
 
   void _logWorkout() {
@@ -61,28 +62,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _goalProgress = (_goalProgress + 0.06).clamp(0, 1);
     });
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Workout added')));
+    AppFeedback.showSnackBar(context, 'Workout added');
   }
 
   void _resetProgress() {
     setState(() {
       _goalProgress = 0;
-      _waterCups = 0;
       _workoutMinutes = 0;
       _caloriesBurned = 0;
     });
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Today\'s progress reset')));
+    AppFeedback.showSnackBar(context, 'Today\'s progress reset');
   }
 
   void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$feature coming soon')));
+    AppFeedback.showSnackBar(context, '$feature coming soon');
   }
 
   Future<void> _logout() async {
@@ -98,17 +92,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final metrics = AppScope.of(context).metrics;
+    final waterCups = (metrics.waterMl / 250).round();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FBFD),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF7FBFD),
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Profile',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
+        title: const Text('Profile'),
         actions: [
           PopupMenuButton<_ProfileMenuAction>(
             icon: const Icon(Icons.more_vert_rounded),
@@ -118,6 +107,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _openEditProfile();
                 case _ProfileMenuAction.reset:
                   _resetProgress();
+                case _ProfileMenuAction.settings:
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  );
                 case _ProfileMenuAction.logout:
                   _logout();
               }
@@ -136,6 +132,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: ListTile(
                   leading: Icon(Icons.restart_alt_rounded),
                   title: Text('Reset progress'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: _ProfileMenuAction.settings,
+                child: ListTile(
+                  leading: Icon(Icons.settings_rounded),
+                  title: Text('Settings'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -169,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: _MetricTile(
                     icon: Icons.local_drink_rounded,
                     label: 'Water',
-                    value: '$_waterCups cups',
+                    value: '$waterCups cups',
                     color: colorScheme.primary,
                   ),
                 ),
@@ -205,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-enum _ProfileMenuAction { edit, reset, logout }
+enum _ProfileMenuAction { edit, reset, settings, logout }
 
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
@@ -230,9 +234,13 @@ class _ProfileHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE2EEF3)),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppColors.border,
+        ),
         boxShadow: [
           BoxShadow(
             color: colorScheme.primary.withValues(alpha: 0.08),
@@ -278,7 +286,9 @@ class _ProfileHeader extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF607080),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.62),
                         height: 1.35,
                         fontWeight: FontWeight.w600,
                       ),
@@ -301,8 +311,8 @@ class _ProfileHeader extends StatelessWidget {
                   goal,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF25364A),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -322,7 +332,7 @@ class _ProfileHeader extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 10,
-              backgroundColor: const Color(0xFFEAF2F6),
+              backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
               color: colorScheme.primary,
             ),
           ),
@@ -352,9 +362,13 @@ class _MetricTile extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(wide ? 18 : 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2EEF3)),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppColors.border,
+        ),
       ),
       child: Row(
         children: [
@@ -376,8 +390,8 @@ class _MetricTile extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF81909D),
+                  style: TextStyle(
+                    color: AppColors.muted,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
@@ -387,8 +401,8 @@ class _MetricTile extends StatelessWidget {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF061A3A),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
