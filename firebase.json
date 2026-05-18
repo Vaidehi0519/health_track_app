@@ -1,0 +1,44 @@
+{
+  "firestore": {
+    "rules": "firebase/firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "health-track-app-e01e3",
+          "appId": "1:1026624653346:android:26704975df581629cd627b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "health-track-app-e01e3",
+          "appId": "1:1026624653346:ios:7a1624bf248d55c6cd627b",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "health-track-app-e01e3",
+          "appId": "1:1026624653346:ios:7a1624bf248d55c6cd627b",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "health-track-app-e01e3",
+          "configurations": {
+            "android": "1:1026624653346:android:26704975df581629cd627b",
+            "ios": "1:1026624653346:ios:7a1624bf248d55c6cd627b",
+            "macos": "1:1026624653346:ios:7a1624bf248d55c6cd627b",
+            "web": "1:1026624653346:web:f598efd3b9722169cd627b",
+            "windows": "1:1026624653346:web:c3d918fb63337282cd627b"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:health_track_app/core/session_store.dart';
 import 'package:health_track_app/ui/screens/auth/onboarding/onboarding_screen.dart';
@@ -56,6 +57,7 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(milliseconds: 3300), () async {
       if (!mounted) return;
       final isLoggedIn = await SessionStore.isLoggedIn();
+      final hasFirebaseSession = FirebaseAuth.instance.currentUser != null;
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -63,7 +65,9 @@ class _SplashScreenState extends State<SplashScreen>
           pageBuilder: (context, animation, secondaryAnimation) =>
               FadeTransition(
                 opacity: animation,
-                child: isLoggedIn ? const AppShell() : const OnboardingScreen(),
+                child: isLoggedIn || hasFirebaseSession
+                    ? const AppShell()
+                    : const OnboardingScreen(),
               ),
         ),
       );

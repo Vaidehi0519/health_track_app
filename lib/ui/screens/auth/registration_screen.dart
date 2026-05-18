@@ -1,6 +1,7 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
-import 'package:health_track_app/core/session_store.dart';
+import 'package:health_track_app/core/state/app_scope.dart';
+import 'package:health_track_app/core/utils/app_feedback.dart';
 import 'package:health_track_app/ui/screens/app_shell.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -43,21 +44,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
 
     setState(() => _isCreatingAccount = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    await SessionStore.setLoggedIn(true);
-    if (!mounted) return;
-    setState(() => _isCreatingAccount = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Welcome, ${_nameController.text.trim()}!')),
-    );
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const AppShell()),
-      (route) => false,
-    );
+    try {
+      await AppScope.of(context).signUp(
+        name: _nameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+        gender: _gender,
+      );
+      if (!mounted) return;
+      setState(() => _isCreatingAccount = false);
+      AppFeedback.showSnackBar(
+        context,
+        'Welcome, ${_nameController.text.trim()}!',
+      );
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const AppShell()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isCreatingAccount = false);
+      AppFeedback.showSnackBar(context, error.toString());
+    }
   }
 
   @override

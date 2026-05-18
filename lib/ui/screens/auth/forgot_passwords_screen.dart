@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:health_track_app/core/state/app_scope.dart';
+import 'package:health_track_app/core/utils/app_feedback.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -23,13 +25,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!isValid) return;
 
     setState(() => _isSending = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    setState(() => _isSending = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Reset link sent')));
-    Navigator.pop(context);
+    try {
+      await AppScope.of(context).resetPassword(_emailController.text.trim());
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      AppFeedback.showSnackBar(context, 'Reset link sent');
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      AppFeedback.showSnackBar(context, error.toString());
+    }
   }
 
   @override
@@ -75,7 +81,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Enter your email and we will show the confirmation flow. Connect it to your backend later.',
+                'Enter your email and we will send a secure reset link.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: const Color(0xFF607080),
                   height: 1.4,

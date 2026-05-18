@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:health_track_app/core/theme/app_theme.dart';
+import 'package:health_track_app/ui/screens/activity/activity_screen.dart';
+import 'package:health_track_app/ui/screens/dashboard/dashboard_screen.dart';
 import 'package:health_track_app/ui/screens/diary/diary_screen.dart';
-import 'package:health_track_app/ui/screens/home/home_screen.dart';
-import 'package:health_track_app/ui/screens/messages/message_screen.dart';
-import 'package:health_track_app/ui/screens/notifications_screen.dart';
+import 'package:health_track_app/ui/screens/insights/insights_screen.dart';
 import 'package:health_track_app/ui/screens/profile/profile_screen.dart';
 
 class AppShell extends StatefulWidget {
@@ -17,10 +17,10 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
   late final List<Widget> _screens = const [
-    HomeScreen(),
+    DashboardScreen(),
     DiaryScreen(),
-    MessageScreen(),
-    NotificationScreen(),
+    ActivityScreen(),
+    InsightsScreen(),
     ProfileScreen(uid: 'demo-user'),
   ];
 
@@ -66,9 +66,9 @@ class _AppShellState extends State<AppShell> {
               },
               destinations: const [
                 NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
+                  icon: Icon(Icons.space_dashboard_outlined),
+                  selectedIcon: Icon(Icons.space_dashboard_rounded),
+                  label: 'Today',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.dashboard_customize_outlined),
@@ -76,14 +76,14 @@ class _AppShellState extends State<AppShell> {
                   label: 'Diary',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.chat_bubble_outline_rounded),
-                  selectedIcon: Icon(Icons.chat_bubble_rounded),
-                  label: 'Coach',
+                  icon: Icon(Icons.fitness_center_outlined),
+                  selectedIcon: Icon(Icons.fitness_center_rounded),
+                  label: 'Move',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.notifications_none_rounded),
-                  selectedIcon: Icon(Icons.notifications_rounded),
-                  label: 'Alerts',
+                  icon: Icon(Icons.insights_outlined),
+                  selectedIcon: Icon(Icons.insights_rounded),
+                  label: 'Insights',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.person_outline_rounded),

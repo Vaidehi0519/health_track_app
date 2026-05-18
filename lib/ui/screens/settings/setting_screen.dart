@@ -44,30 +44,76 @@ class SettingsScreen extends StatelessWidget {
               color: AppColors.primary,
               title: 'Smart reminders',
               subtitle: 'Hydration, meals, sleep, and weekly check-ins.',
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => AppFeedback.showSnackBar(
-                context,
-                'Reminder preferences are ready for a notification backend.',
-                icon: Icons.info_rounded,
+              trailing: CupertinoSwitch(
+                value: appState.reminders.water,
+                activeTrackColor: colorScheme.primary,
+                onChanged: (value) async {
+                  await appState.updateReminders(
+                    appState.reminders.copyWith(water: value, meals: value),
+                  );
+                  if (!context.mounted) return;
+                  AppFeedback.showSnackBar(
+                    context,
+                    value ? 'Reminders enabled' : 'Reminders paused',
+                  );
+                },
               ),
             ),
             const SizedBox(height: 12),
             _SettingsTile(
               icon: Icons.health_and_safety_rounded,
               color: AppColors.secondary,
-              title: 'Health data',
-              subtitle: 'Manage connected devices and exported reports.',
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => AppFeedback.showSnackBar(
-                context,
-                'Health data integrations can be added next.',
-                icon: Icons.info_rounded,
-              ),
+              title: 'Cloud sync',
+              subtitle: _syncSubtitle(appState.lastSyncedAt),
+              trailing: appState.isSyncing
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    )
+                  : const Icon(Icons.sync_rounded),
+              onTap: appState.isSyncing
+                  ? null
+                  : () async {
+                      if (!appState.canCloudSync) {
+                        AppFeedback.showSnackBar(
+                          context,
+                          'Sign in to sync health data.',
+                          icon: Icons.info_rounded,
+                        );
+                        return;
+                      }
+                      try {
+                        await appState.syncNow();
+                        if (!context.mounted) return;
+                        AppFeedback.showSnackBar(
+                          context,
+                          'Health data synced',
+                          icon: Icons.cloud_done_rounded,
+                        );
+                      } catch (error) {
+                        if (!context.mounted) return;
+                        AppFeedback.showSnackBar(
+                          context,
+                          error.toString(),
+                          icon: Icons.error_outline_rounded,
+                        );
+                      }
+                    },
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _syncSubtitle(DateTime? lastSyncedAt) {
+    if (lastSyncedAt == null) {
+      return 'Back up meals, water, workouts, and weight to Firestore.';
+    }
+    final time =
+        '${lastSyncedAt.hour.toString().padLeft(2, '0')}:${lastSyncedAt.minute.toString().padLeft(2, '0')}';
+    return 'Last synced ${lastSyncedAt.day}/${lastSyncedAt.month} at $time.';
   }
 }
 

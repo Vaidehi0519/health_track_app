@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsUserDoc(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read, create, update, delete: if ownsUserDoc(userId);
+
+      match /meals/{mealId} {
+        allow read, create, update, delete: if ownsUserDoc(userId);
+      }
+
+      match /water/{waterId} {
+        allow read, create, update, delete: if ownsUserDoc(userId);
+      }
+
+      match /workouts/{workoutId} {
+        allow read, create, update, delete: if ownsUserDoc(userId);
+      }
+
+      match /weight/{weightId} {
+        allow read, create, update, delete: if ownsUserDoc(userId);
+      }
+
+      match /settings/{settingId} {
+        allow read, create, update, delete: if ownsUserDoc(userId);
+      }
+    }
+
+    match /publicPosts/{postId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && resource.data.authorId == request.auth.uid;
+    }
+  }
+}

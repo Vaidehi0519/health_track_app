@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:health_track_app/core/session_store.dart';
 import 'package:health_track_app/core/state/app_scope.dart';
 import 'package:health_track_app/core/theme/app_theme.dart';
 import 'package:health_track_app/core/utils/app_feedback.dart';
@@ -17,21 +16,20 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _name = 'Vaidehi';
   String _bio = 'Building healthier routines one small win at a time.';
-  String _goal = 'Weekly wellness goal';
   double _goalProgress = 0.68;
   int _workoutMinutes = 42;
   int _caloriesBurned = 420;
 
   Future<void> _openEditProfile() async {
+    final appState = AppScope.of(context);
     final result = await Navigator.push<EditProfileResult>(
       context,
       MaterialPageRoute(
         builder: (context) => EditProfileScreen(
-          initialName: _name,
+          initialName: appState.profile.name,
           initialBio: _bio,
-          initialGoal: _goal,
+          initialGoal: appState.profile.goal,
         ),
       ),
     );
@@ -39,10 +37,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result == null) return;
 
     setState(() {
-      _name = result.name;
       _bio = result.bio;
-      _goal = result.goal;
     });
+    await appState.updateProfile(
+      appState.profile.copyWith(name: result.name, goal: result.goal),
+    );
 
     if (!mounted) return;
     AppFeedback.showSnackBar(context, 'Profile updated');
@@ -80,7 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
-    await SessionStore.setLoggedIn(false);
+    await AppScope.of(context).signOut();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
@@ -92,7 +91,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final metrics = AppScope.of(context).metrics;
+    final appState = AppScope.of(context);
+    final metrics = appState.metrics;
+    final profile = appState.profile;
     final waterCups = (metrics.waterMl / 250).round();
 
     return Scaffold(
@@ -160,9 +161,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           children: [
             _ProfileHeader(
-              name: _name,
+              name: profile.name,
               bio: _bio,
-              goal: _goal,
+              goal: profile.goal,
               progress: _goalProgress,
               onEdit: _openEditProfile,
             ),

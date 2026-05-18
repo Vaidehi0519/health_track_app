@@ -50,7 +50,13 @@ class _DiaryScreenState extends State<DiaryScreen> {
       case _DiaryAction.water:
         await appState.addWater(250);
       case _DiaryAction.meal:
-        appState.addMeal(calories: 320, carbs: 36, fat: 10, protein: 18);
+        await appState.addMeal(
+          name: 'Quick meal',
+          calories: 320,
+          carbs: 36,
+          fat: 10,
+          protein: 18,
+        );
       case _DiaryAction.steps:
         appState.addSteps();
       case _DiaryAction.heart:

@@ -1,6 +1,7 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
-import 'package:health_track_app/core/session_store.dart';
+import 'package:health_track_app/core/state/app_scope.dart';
+import 'package:health_track_app/core/utils/app_feedback.dart';
 import 'package:health_track_app/ui/screens/auth/about/about_screen.dart';
 import 'package:health_track_app/ui/screens/auth/forgot_passwords_screen.dart';
 import 'package:health_track_app/ui/screens/app_shell.dart';
@@ -33,20 +34,39 @@ class _LoginScreensState extends State<LoginScreens> {
     if (!isValid) return;
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    await SessionStore.setLoggedIn(_rememberMe);
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+    try {
+      await AppScope.of(context).signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AppShell()),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      AppFeedback.showSnackBar(context, error.toString());
+    }
+  }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const AppShell()),
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Login flow is ready to connect.')),
-    );
+  Future<void> _googleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      await AppScope.of(context).signInWithGoogle();
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AppShell()),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      AppFeedback.showSnackBar(context, error.toString());
+    }
   }
 
   @override
@@ -299,6 +319,16 @@ class _LoginScreensState extends State<LoginScreens> {
                             const SizedBox(height: 24),
                             FadeInUp(
                               delay: const Duration(milliseconds: 360),
+                              duration: const Duration(milliseconds: 520),
+                              child: OutlinedButton.icon(
+                                onPressed: _isLoading ? null : _googleSignIn,
+                                icon: const Icon(Icons.g_mobiledata_rounded),
+                                label: const Text('Continue with Google'),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            FadeInUp(
+                              delay: const Duration(milliseconds: 400),
                               duration: const Duration(milliseconds: 520),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
