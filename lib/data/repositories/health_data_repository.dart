@@ -103,6 +103,23 @@ class HealthDataRepository {
     return _setDocument('weight', entry.id, entry.toJson());
   }
 
+  Future<void> saveDailyLog({
+    required String dateId,
+    required Map<String, Object?> data,
+  }) {
+    return _setDocument('dailyLogs', dateId, data);
+  }
+
+  Future<void> saveDailyLogs(Map<String, Map<String, Object?>> logs) async {
+    if (!canSync || logs.isEmpty) return;
+    final batch = _db.batch();
+    final userDoc = _userDoc();
+    for (final entry in logs.entries) {
+      batch.set(userDoc.collection('dailyLogs').doc(entry.key), entry.value);
+    }
+    await batch.commit();
+  }
+
   Future<void> pushSnapshot(HealthDataSnapshot snapshot) async {
     if (!canSync) return;
     final batch = _db.batch();

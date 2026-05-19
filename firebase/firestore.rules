@@ -29,6 +29,10 @@ service cloud.firestore {
         allow read, create, update, delete: if ownsUserDoc(userId);
       }
 
+      match /dailyLogs/{dateId} {
+        allow read, create, update, delete: if ownsUserDoc(userId);
+      }
+
       match /settings/{settingId} {
         allow read, create, update, delete: if ownsUserDoc(userId);
       }

@@ -6,8 +6,10 @@ class AppScope extends InheritedNotifier<AppState> {
     : super(notifier: state);
 
   static AppState of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
+    final scope = context
+        .getElementForInheritedWidgetOfExactType<AppScope>()
+        ?.widget;
     assert(scope != null, 'AppScope was not found in the widget tree.');
-    return scope!.notifier!;
+    return (scope! as AppScope).notifier!;
   }
 }

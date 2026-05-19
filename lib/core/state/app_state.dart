@@ -207,7 +207,10 @@ class AppState extends ChangeNotifier {
       _waterEntries.map((entry) => entry.toJson()).toList(),
     );
     await WaterStorageService.saveWater(nextTotal);
-    await _syncWrite(() => _healthDataRepository.saveWater(entry));
+    await _syncWrite(
+      () => _healthDataRepository.saveWater(entry),
+      affectedDay: entry.createdAt,
+    );
   }
 
   Future<void> addMeal({
@@ -232,7 +235,10 @@ class AppState extends ChangeNotifier {
     _recalculateMetrics();
     notifyListeners();
     await _persistMeals();
-    await _syncWrite(() => _healthDataRepository.saveMeal(meal));
+    await _syncWrite(
+      () => _healthDataRepository.saveMeal(meal),
+      affectedDay: meal.createdAt,
+    );
   }
 
   Future<void> updateMeal(MealEntry meal) async {
@@ -240,15 +246,22 @@ class AppState extends ChangeNotifier {
     _recalculateMetrics();
     notifyListeners();
     await _persistMeals();
-    await _syncWrite(() => _healthDataRepository.saveMeal(meal));
+    await _syncWrite(
+      () => _healthDataRepository.saveMeal(meal),
+      affectedDay: meal.createdAt,
+    );
   }
 
   Future<void> deleteMeal(String mealId) async {
+    final deletedMeal = _meals.where((meal) => meal.id == mealId).firstOrNull;
     _meals = _meals.where((meal) => meal.id != mealId).toList();
     _recalculateMetrics();
     notifyListeners();
     await _persistMeals();
-    await _syncWrite(() => _healthDataRepository.deleteMeal(mealId));
+    await _syncWrite(
+      () => _healthDataRepository.deleteMeal(mealId),
+      affectedDay: deletedMeal?.createdAt,
+    );
   }
 
   void addSteps([int amount = 1000]) {
@@ -281,7 +294,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     _persistWeightEntries();
     _persistProfile();
-    _syncWrite(() => _healthDataRepository.saveWeight(entry));
+    _syncWrite(
+      () => _healthDataRepository.saveWeight(entry),
+      affectedDay: entry.createdAt,
+    );
   }
 
   Future<void> addWeight(double weightKg) async {
@@ -296,7 +312,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     await _persistWeightEntries();
     await _persistProfile();
-    await _syncWrite(() => _healthDataRepository.saveWeight(entry));
+    await _syncWrite(
+      () => _healthDataRepository.saveWeight(entry),
+      affectedDay: entry.createdAt,
+    );
   }
 
   Future<void> addWorkout({
@@ -317,7 +336,10 @@ class AppState extends ChangeNotifier {
     _recalculateMetrics();
     notifyListeners();
     await _persistWorkouts();
-    await _syncWrite(() => _healthDataRepository.saveWorkout(workout));
+    await _syncWrite(
+      () => _healthDataRepository.saveWorkout(workout),
+      affectedDay: workout.createdAt,
+    );
   }
 
   List<MealEntry> searchMeals(String query, {MealType? type}) {
@@ -403,6 +425,7 @@ class AppState extends ChangeNotifier {
             weightEntries: _weightEntries,
           ),
         );
+        await _healthDataRepository.saveDailyLogs(_dailyLogsByDate());
       }
       final cloudSnapshot = await _healthDataRepository.loadAll();
       _meals = _mergeById(
@@ -509,15 +532,88 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  Future<void> _syncWrite(Future<void> Function() write) async {
+  Future<void> _syncWrite(
+    Future<void> Function() write, {
+    DateTime? affectedDay,
+  }) async {
     if (!_healthDataRepository.canSync) return;
     await write();
+    if (affectedDay != null) {
+      await _healthDataRepository.saveDailyLog(
+        dateId: _dateId(affectedDay),
+        data: _dailyLogForDay(affectedDay),
+      );
+    }
     _lastSyncedAt = DateTime.now();
     await _storage.setString(
       _lastSyncedAtKey,
       _lastSyncedAt!.toIso8601String(),
     );
     notifyListeners();
+  }
+
+  Map<String, Map<String, Object?>> _dailyLogsByDate() {
+    final days = <String, DateTime>{};
+    for (final meal in _meals) {
+      days[_dateId(meal.createdAt)] = meal.createdAt;
+    }
+    for (final entry in _waterEntries) {
+      days[_dateId(entry.createdAt)] = entry.createdAt;
+    }
+    for (final workout in _workouts) {
+      days[_dateId(workout.createdAt)] = workout.createdAt;
+    }
+    for (final entry in _weightEntries) {
+      days[_dateId(entry.createdAt)] = entry.createdAt;
+    }
+
+    return {
+      for (final day in days.entries) day.key: _dailyLogForDay(day.value),
+    };
+  }
+
+  Map<String, Object?> _dailyLogForDay(DateTime day) {
+    final meals = _mealsForDay(day);
+    final workouts = _workoutsForDay(day);
+    final waterMl = _waterForDay(day);
+    final weight = _weightEntries
+        .where((entry) => _isSameDay(entry.createdAt, day))
+        .map((entry) => entry.weightKg)
+        .firstOrNull;
+    final calories = meals.fold<int>(0, (total, meal) => total + meal.calories);
+    final protein = meals.fold<int>(0, (total, meal) => total + meal.protein);
+    final carbs = meals.fold<int>(0, (total, meal) => total + meal.carbs);
+    final fat = meals.fold<int>(0, (total, meal) => total + meal.fat);
+    final workoutMinutes = workouts.fold<int>(
+      0,
+      (total, workout) => total + workout.minutes,
+    );
+    final workoutCalories = workouts.fold<int>(
+      0,
+      (total, workout) => total + workout.caloriesBurned,
+    );
+    final loggedWeight = weight ?? _profile.weightKg;
+
+    return {
+      'dateId': _dateId(day),
+      'date': DateTime(day.year, day.month, day.day).toIso8601String(),
+      'userId': _profile.uid,
+      'calories': calories,
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
+      'waterMl': waterMl,
+      'workoutMinutes': workoutMinutes,
+      'workoutCalories': workoutCalories,
+      'weightKg': loggedWeight,
+      'bmi': _bmiForWeight(loggedWeight),
+      'mealCount': meals.length,
+      'waterEntryCount': _waterEntries
+          .where((entry) => _isSameDay(entry.createdAt, day))
+          .length,
+      'workoutCount': workouts.length,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
   }
 
   static HealthMetrics _buildMetrics({
@@ -561,6 +657,18 @@ class AppState extends ChangeNotifier {
   }
 
   static String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
+
+  static String _dateId(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  double _bmiForWeight(double weightKg) {
+    final heightM = _profile.heightCm / 100;
+    if (heightM <= 0) return 0;
+    return double.parse((weightKg / (heightM * heightM)).toStringAsFixed(1));
+  }
 
   static List<T> _mergeById<T>({
     required List<T> localItems,
