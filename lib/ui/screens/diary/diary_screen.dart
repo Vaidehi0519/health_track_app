@@ -160,7 +160,9 @@ class _DiaryScreenState extends State<DiaryScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final metrics = AppScope.of(context).metrics;
+    final appState = AppScope.of(context);
+    final metrics = appState.metrics;
+    final nutrition = appState.nutritionForDay(_selectedDate);
     final waterLiters = (metrics.waterMl / 1000).toStringAsFixed(2);
     final sleepHours =
         '${metrics.sleepMinutes ~/ 60}h ${metrics.sleepMinutes % 60}m';
@@ -215,10 +217,10 @@ class _DiaryScreenState extends State<DiaryScreen> {
                         child: Column(
                           children: [
                             _CaloriesCard(
-                              calories: metrics.calories,
-                              carbs: metrics.carbs,
-                              fat: metrics.fat,
-                              protein: metrics.protein,
+                              calories: nutrition.calories,
+                              carbs: nutrition.carbs,
+                              fat: nutrition.fat,
+                              protein: nutrition.protein,
                               onTap: () => _openScreen(
                                 CaloriesStatsScreen(date: _selectedDate),
                               ),

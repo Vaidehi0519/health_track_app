@@ -17,13 +17,13 @@ class MealEntry {
   factory MealEntry.fromJson(Map<String, Object?> json) {
     return MealEntry(
       id: json['id'] as String,
-      name: json['name'] as String,
+      name: json['name'] as String? ?? 'Meal',
       type: MealType.values.byName(json['type'] as String? ?? 'snack'),
-      calories: json['calories'] as int? ?? 0,
-      protein: json['protein'] as int? ?? 0,
-      carbs: json['carbs'] as int? ?? 0,
-      fat: json['fat'] as int? ?? 0,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      calories: _jsonInt(json['calories']),
+      protein: _jsonInt(json['protein']),
+      carbs: _jsonInt(json['carbs']),
+      fat: _jsonInt(json['fat']),
+      createdAt: _jsonDateTime(json['createdAt']) ?? DateTime.now(),
     );
   }
 
@@ -68,6 +68,47 @@ class MealEntry {
       'carbs': carbs,
       'fat': fat,
       'createdAt': createdAt.toIso8601String(),
+    };
+  }
+}
+
+class DailyNutritionSummary {
+  const DailyNutritionSummary({
+    required this.dateId,
+    required this.date,
+    required this.calories,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+  });
+
+  factory DailyNutritionSummary.fromJson(Map<String, Object?> json) {
+    final dateId = json['dateId'] as String? ?? '';
+    return DailyNutritionSummary(
+      dateId: dateId,
+      date: _jsonDateTime(json['date']) ?? _dateFromId(dateId),
+      calories: _jsonInt(json['calories']),
+      protein: _jsonInt(json['protein']),
+      carbs: _jsonInt(json['carbs']),
+      fat: _jsonInt(json['fat']),
+    );
+  }
+
+  final String dateId;
+  final DateTime date;
+  final int calories;
+  final int protein;
+  final int carbs;
+  final int fat;
+
+  Map<String, Object?> toJson() {
+    return {
+      'dateId': dateId,
+      'date': date.toIso8601String(),
+      'calories': calories,
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
     };
   }
 }
@@ -221,4 +262,29 @@ class ReminderPreference {
       'sleep': sleep,
     };
   }
+}
+
+int _jsonInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
+}
+
+DateTime? _jsonDateTime(Object? value) {
+  if (value is DateTime) return value;
+  if (value is String) return DateTime.tryParse(value);
+  try {
+    final dynamic timestamp = value;
+    final converted = timestamp?.toDate();
+    if (converted is DateTime) return converted;
+  } catch (_) {
+    return null;
+  }
+  return null;
+}
+
+DateTime _dateFromId(String dateId) {
+  final parsed = DateTime.tryParse(dateId);
+  return parsed ?? DateTime.now();
 }

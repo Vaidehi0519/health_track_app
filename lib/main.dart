@@ -24,15 +24,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppScope(
       state: appState,
-      child: AnimatedBuilder(
-        animation: appState,
-        builder: (context, _) {
+      child: Builder(
+        builder: (context) {
+          final state = AppScope.of(context);
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Health Tracker',
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
-            themeMode: appState.themeMode,
+            themeMode: state.themeMode,
             home: const SplashScreen(),
           );
         },

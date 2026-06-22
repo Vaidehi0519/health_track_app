@@ -13,6 +13,10 @@ class LocalStorageService {
     return _prefs.setString(key, value);
   }
 
+  Future<void> remove(String key) {
+    return _prefs.remove(key);
+  }
+
   List<Map<String, Object?>> getJsonList(String key) {
     final raw = _prefs.getString(key);
     if (raw == null || raw.isEmpty) return [];

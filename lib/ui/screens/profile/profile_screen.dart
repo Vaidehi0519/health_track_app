@@ -7,9 +7,7 @@ import 'package:health_track_app/ui/screens/profile/edit_profilescreen.dart';
 import 'package:health_track_app/ui/screens/settings/setting_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, required this.uid});
-
-  final String uid;
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();

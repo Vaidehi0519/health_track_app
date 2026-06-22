@@ -64,12 +64,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<WorkoutType>(
                         initialValue: type,
-                        decoration: const InputDecoration(labelText: 'Type'),
+                        decoration: const InputDecoration(
+                          labelText: 'Type',
+                          prefixIcon: Icon(Icons.category_rounded),
+                        ),
                         items: WorkoutType.values
                             .map(
                               (item) => DropdownMenuItem(
                                 value: item,
-                                child: Text(item.name),
+                                child: Text(_workoutTypeLabel(item)),
                               ),
                             )
                             .toList(),
@@ -84,6 +87,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                             child: _NumberInput(
                               controller: minutesController,
                               label: 'Minutes',
+                              max: 1440,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -91,6 +95,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
                             child: _NumberInput(
                               controller: caloriesController,
                               label: 'Calories',
+                              max: 5000,
+                              allowZero: true,
                             ),
                           ),
                         ],
@@ -132,11 +138,29 @@ class _ActivityScreenState extends State<ActivityScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = AppScope.of(context);
-    final workouts = appState.workouts;
-    final caloriesBurned = workouts.fold<int>(
+    final today = DateTime.now();
+    final todayWorkouts = appState.workouts
+        .where((workout) => _isSameDay(workout.createdAt, today))
+        .toList();
+    final weeklyWorkouts = appState.workouts
+        .where((workout) => today.difference(workout.createdAt).inDays < 7)
+        .toList();
+    final caloriesBurned = todayWorkouts.fold<int>(
       0,
       (total, workout) => total + workout.caloriesBurned,
     );
+    final weeklyMinutes = weeklyWorkouts.fold<int>(
+      0,
+      (total, workout) => total + workout.minutes,
+    );
+    final workoutCount = todayWorkouts.length;
+    final weeklyPoints = _weeklyMinutePoints(appState.workouts, today);
+    final typeTotals = {
+      for (final type in WorkoutType.values)
+        type: todayWorkouts
+            .where((workout) => workout.type == type)
+            .fold<int>(0, (total, workout) => total + workout.minutes),
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -160,7 +184,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     icon: Icons.timer_rounded,
                     label: 'Workout time',
                     value: '${appState.dailyWorkoutMinutes}m',
+                    subtitle: '$workoutCount sessions today',
                     color: AppColors.secondary,
+                    progress: appState.dailyWorkoutMinutes / 45,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -169,7 +195,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     icon: Icons.local_fire_department_rounded,
                     label: 'Burned',
                     value: '$caloriesBurned',
-                    subtitle: 'kcal total',
+                    subtitle: 'kcal today',
                     color: AppColors.accent,
                   ),
                 ),
@@ -182,45 +208,129 @@ class _ActivityScreenState extends State<ActivityScreen> {
               label: const Text('Log workout'),
             ),
             const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: HealthStatCard(
+                    icon: Icons.calendar_view_week_rounded,
+                    label: 'This week',
+                    value: '${weeklyMinutes}m',
+                    subtitle: '${weeklyWorkouts.length} workouts',
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: HealthStatCard(
+                    icon: Icons.flag_rounded,
+                    label: 'Daily goal',
+                    value:
+                        '${(appState.dailyWorkoutMinutes / 45 * 100).clamp(0, 999).round()}%',
+                    subtitle: '45 min movement target',
+                    color: AppColors.purple,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _ActivityPanel(
+              title: '7-day movement',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TrendChart(
+                    values: weeklyPoints
+                        .map((value) => value.toDouble())
+                        .toList(),
+                    color: AppColors.secondary,
+                    height: 140,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Minutes logged over the last 7 days',
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.62),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            _ActivityPanel(
+              title: 'Today by type',
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: WorkoutType.values.map((type) {
+                  final minutes = typeTotals[type] ?? 0;
+                  return _TypeChip(type: type, minutes: minutes);
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 18),
             const Text(
-              'Workout history',
+              'Today\'s workouts',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 12),
-            if (workouts.isEmpty)
+            if (todayWorkouts.isEmpty)
               const EmptyState(
                 icon: Icons.directions_run_rounded,
                 title: 'No workouts logged',
                 message: 'Add walks, strength sessions, yoga, or cardio here.',
               )
             else
-              ...workouts.map(
-                (workout) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    tileColor: Theme.of(context).colorScheme.surface,
-                    shape: RoundedRectangleBorder(
+              ...todayWorkouts.map(
+                (workout) => Dismissible(
+                  key: ValueKey(workout.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.danger.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.secondary.withValues(
-                        alpha: 0.12,
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                  onDismissed: (_) async {
+                    await appState.deleteWorkout(workout.id);
+                    if (mounted) setState(() {});
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: ListTile(
+                      tileColor: Theme.of(context).colorScheme.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Icon(
-                        Icons.fitness_center_rounded,
-                        color: AppColors.secondary,
+                      leading: CircleAvatar(
+                        backgroundColor: AppColors.secondary.withValues(
+                          alpha: 0.12,
+                        ),
+                        child: Icon(
+                          _workoutTypeIcon(workout.type),
+                          color: AppColors.secondary,
+                        ),
                       ),
-                    ),
-                    title: Text(
-                      workout.name,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    subtitle: Text(
-                      '${workout.type.name} - ${workout.minutes} minutes',
-                    ),
-                    trailing: Text(
-                      '${workout.caloriesBurned} kcal',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                      title: Text(
+                        workout.name,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      subtitle: Text(
+                        '${_workoutTypeLabel(workout.type)} - ${workout.minutes} minutes',
+                      ),
+                      trailing: Text(
+                        '${workout.caloriesBurned} kcal',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
                     ),
                   ),
                 ),
@@ -233,10 +343,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
 }
 
 class _NumberInput extends StatelessWidget {
-  const _NumberInput({required this.controller, required this.label});
+  const _NumberInput({
+    required this.controller,
+    required this.label,
+    required this.max,
+    this.allowZero = false,
+  });
 
   final TextEditingController controller;
   final String label;
+  final int max;
+  final bool allowZero;
 
   @override
   Widget build(BuildContext context) {
@@ -246,9 +363,130 @@ class _NumberInput extends StatelessWidget {
       decoration: InputDecoration(labelText: label),
       validator: (value) {
         final number = int.tryParse(value ?? '');
-        if (number == null || number <= 0) return 'Required';
+        final min = allowZero ? 0 : 1;
+        if (number == null || number < min || number > max) {
+          return '$min-$max';
+        }
         return null;
       },
     );
   }
+}
+
+class _ActivityPanel extends StatelessWidget {
+  const _ActivityPanel({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({required this.type, required this.minutes});
+
+  final WorkoutType type;
+  final int minutes;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _workoutTypeColor(type);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_workoutTypeIcon(type), color: color, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            '${_workoutTypeLabel(type)} $minutes m',
+            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<int> _weeklyMinutePoints(List<WorkoutEntry> workouts, DateTime today) {
+  final start = DateTime(
+    today.year,
+    today.month,
+    today.day,
+  ).subtract(const Duration(days: 6));
+  return List.generate(7, (index) {
+    final day = start.add(Duration(days: index));
+    return workouts
+        .where((workout) => _isSameDay(workout.createdAt, day))
+        .fold<int>(0, (total, workout) => total + workout.minutes);
+  });
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+String _workoutTypeLabel(WorkoutType type) {
+  return switch (type) {
+    WorkoutType.walk => 'Walk',
+    WorkoutType.run => 'Run',
+    WorkoutType.strength => 'Strength',
+    WorkoutType.yoga => 'Yoga',
+    WorkoutType.cycling => 'Cycling',
+    WorkoutType.cardio => 'Cardio',
+  };
+}
+
+IconData _workoutTypeIcon(WorkoutType type) {
+  return switch (type) {
+    WorkoutType.walk => Icons.directions_walk_rounded,
+    WorkoutType.run => Icons.directions_run_rounded,
+    WorkoutType.strength => Icons.fitness_center_rounded,
+    WorkoutType.yoga => Icons.self_improvement_rounded,
+    WorkoutType.cycling => Icons.directions_bike_rounded,
+    WorkoutType.cardio => Icons.monitor_heart_rounded,
+  };
+}
+
+Color _workoutTypeColor(WorkoutType type) {
+  return switch (type) {
+    WorkoutType.walk => AppColors.primary,
+    WorkoutType.run => AppColors.accent,
+    WorkoutType.strength => AppColors.secondary,
+    WorkoutType.yoga => AppColors.purple,
+    WorkoutType.cycling => AppColors.rose,
+    WorkoutType.cardio => AppColors.danger,
+  };
 }

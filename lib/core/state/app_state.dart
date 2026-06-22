@@ -8,7 +8,6 @@ import 'package:health_track_app/data/services/notification_service.dart';
 import 'package:health_track_app/domain/models/health_entry.dart';
 import 'package:health_track_app/domain/models/user_profile.dart';
 import 'package:health_track_app/core/state/health_metrics.dart';
-import 'package:health_track_app/widgets/water_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppState extends ChangeNotifier {
@@ -20,6 +19,7 @@ class AppState extends ChangeNotifier {
     required List<WaterEntry> waterEntries,
     required List<WorkoutEntry> workouts,
     required List<WeightEntry> weightEntries,
+    required List<DailyNutritionSummary> dailySummaries,
     required ReminderPreference reminders,
     required LocalStorageService storage,
     required AuthRepository authRepository,
@@ -33,6 +33,7 @@ class AppState extends ChangeNotifier {
        _waterEntries = waterEntries,
        _workouts = workouts,
        _weightEntries = weightEntries,
+       _dailySummaries = dailySummaries,
        _reminders = reminders,
        _storage = storage,
        _authRepository = authRepository,
@@ -55,7 +56,6 @@ class AppState extends ChangeNotifier {
     final authRepository = AuthRepository();
     final healthDataRepository = HealthDataRepository();
     final savedTheme = prefs.getString(_themeModeKey);
-    final waterMl = await WaterStorageService.loadWater();
     final profile = storage.getJsonMap(_profileKey);
     final meals = storage
         .getJsonList(_mealsKey)
@@ -107,11 +107,9 @@ class AppState extends ChangeNotifier {
       idOf: (entry) => entry.id,
       createdAtOf: (entry) => entry.createdAt,
     );
-    final todayWater = syncedWaterEntries.isEmpty
-        ? waterMl
-        : syncedWaterEntries
-              .where((entry) => _isSameDay(entry.createdAt, DateTime.now()))
-              .fold<int>(0, (total, entry) => total + entry.amountMl);
+    final todayWater = syncedWaterEntries
+        .where((entry) => _isSameDay(entry.createdAt, DateTime.now()))
+        .fold<int>(0, (total, entry) => total + entry.amountMl);
 
     return AppState._(
       themeMode: switch (savedTheme) {
@@ -122,6 +120,7 @@ class AppState extends ChangeNotifier {
       metrics: _buildMetrics(
         profile: userProfile,
         meals: syncedMeals,
+        dailySummaries: cloudSnapshot.dailySummaries,
         waterMl: todayWater,
         workouts: syncedWorkouts,
         weightEntries: syncedWeightEntries,
@@ -131,6 +130,7 @@ class AppState extends ChangeNotifier {
       waterEntries: syncedWaterEntries,
       workouts: syncedWorkouts,
       weightEntries: syncedWeightEntries,
+      dailySummaries: cloudSnapshot.dailySummaries,
       reminders: reminders == null
           ? ReminderPreference.defaults()
           : ReminderPreference.fromJson(reminders),
@@ -149,6 +149,7 @@ class AppState extends ChangeNotifier {
   List<WaterEntry> _waterEntries;
   List<WorkoutEntry> _workouts;
   List<WeightEntry> _weightEntries;
+  List<DailyNutritionSummary> _dailySummaries;
   ReminderPreference _reminders;
   final LocalStorageService _storage;
   final AuthRepository _authRepository;
@@ -164,19 +165,39 @@ class AppState extends ChangeNotifier {
   List<WaterEntry> get waterEntries => List.unmodifiable(_waterEntries);
   List<WorkoutEntry> get workouts => List.unmodifiable(_workouts);
   List<WeightEntry> get weightEntries => List.unmodifiable(_weightEntries);
+  List<DailyNutritionSummary> get dailySummaries =>
+      List.unmodifiable(_dailySummaries);
   ReminderPreference get reminders => _reminders;
   DateTime? get lastSyncedAt => _lastSyncedAt;
   bool get isSyncing => _isSyncing;
   bool get isDarkMode => _themeMode == ThemeMode.dark;
-  int get dailyCalories =>
-      _mealsForDay().fold(0, (total, meal) => total + meal.calories);
-  int get dailyProtein =>
-      _mealsForDay().fold(0, (total, meal) => total + meal.protein);
+  int get dailyCalories => nutritionForDay(DateTime.now()).calories;
+  int get dailyProtein => nutritionForDay(DateTime.now()).protein;
   int get dailyWorkoutMinutes =>
       _workoutsForDay().fold(0, (total, workout) => total + workout.minutes);
   double get bmi => _profile.bmi;
   bool get isOfflineReady => true;
   bool get canCloudSync => _healthDataRepository.canSync;
+
+  DailyNutritionSummary nutritionForDay(DateTime day) {
+    final meals = _mealsForDay(day);
+    if (meals.isNotEmpty) {
+      return _nutritionSummaryFromMeals(day, meals);
+    }
+
+    final dateId = _dateId(day);
+    return _dailySummaries.firstWhere(
+      (summary) => summary.dateId == dateId,
+      orElse: () => DailyNutritionSummary(
+        dateId: dateId,
+        date: DateTime(day.year, day.month, day.day),
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+      ),
+    );
+  }
 
   Future<void> setDarkMode(bool isEnabled) async {
     _themeMode = isEnabled ? ThemeMode.dark : ThemeMode.light;
@@ -193,6 +214,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> addWater(int amountMl) async {
+    _checkIntRange(amountMl, field: 'Water amount', min: 1, max: 5000);
     final entry = WaterEntry(
       id: _newId(),
       amountMl: amountMl,
@@ -206,7 +228,6 @@ class AppState extends ChangeNotifier {
       _waterEntriesKey,
       _waterEntries.map((entry) => entry.toJson()).toList(),
     );
-    await WaterStorageService.saveWater(nextTotal);
     await _syncWrite(
       () => _healthDataRepository.saveWater(entry),
       affectedDay: entry.createdAt,
@@ -221,6 +242,11 @@ class AppState extends ChangeNotifier {
     required int fat,
     required int protein,
   }) async {
+    _checkIntRange(calories, field: 'Calories', min: 0, max: 5000);
+    _checkIntRange(carbs, field: 'Carbs', min: 0, max: 700);
+    _checkIntRange(fat, field: 'Fat', min: 0, max: 300);
+    _checkIntRange(protein, field: 'Protein', min: 0, max: 400);
+
     final meal = MealEntry(
       id: _newId(),
       name: name,
@@ -301,6 +327,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> addWeight(double weightKg) async {
+    _checkDoubleRange(weightKg, field: 'Weight', min: 20, max: 300);
     final entry = WeightEntry(
       id: _newId(),
       weightKg: weightKg,
@@ -324,6 +351,9 @@ class AppState extends ChangeNotifier {
     required int minutes,
     required int caloriesBurned,
   }) async {
+    _checkIntRange(minutes, field: 'Workout minutes', min: 1, max: 1440);
+    _checkIntRange(caloriesBurned, field: 'Calories burned', min: 0, max: 5000);
+
     final workout = WorkoutEntry(
       id: _newId(),
       name: name,
@@ -339,6 +369,20 @@ class AppState extends ChangeNotifier {
     await _syncWrite(
       () => _healthDataRepository.saveWorkout(workout),
       affectedDay: workout.createdAt,
+    );
+  }
+
+  Future<void> deleteWorkout(String workoutId) async {
+    final deletedWorkout = _workouts
+        .where((workout) => workout.id == workoutId)
+        .firstOrNull;
+    _workouts = _workouts.where((workout) => workout.id != workoutId).toList();
+    _recalculateMetrics();
+    notifyListeners();
+    await _persistWorkouts();
+    await _syncWrite(
+      () => _healthDataRepository.deleteWorkout(workoutId),
+      affectedDay: deletedWorkout?.createdAt,
     );
   }
 
@@ -398,7 +442,34 @@ class AppState extends ChangeNotifier {
     return _authRepository.sendPasswordResetEmail(email);
   }
 
-  Future<void> signOut() => _authRepository.signOut();
+  Future<void> signOut() async {
+    await _authRepository.signOut();
+    _profile = UserProfile.demo();
+    _meals = [];
+    _waterEntries = [];
+    _workouts = [];
+    _weightEntries = [];
+    _dailySummaries = [];
+    _lastSyncedAt = null;
+    _isSyncing = false;
+    _metrics = _buildMetrics(
+      profile: _profile,
+      meals: _meals,
+      dailySummaries: _dailySummaries,
+      waterMl: 0,
+      workouts: _workouts,
+      weightEntries: _weightEntries,
+    );
+    await Future.wait([
+      _storage.remove(_profileKey),
+      _storage.remove(_mealsKey),
+      _storage.remove(_waterEntriesKey),
+      _storage.remove(_workoutsKey),
+      _storage.remove(_weightEntriesKey),
+      _storage.remove(_lastSyncedAtKey),
+    ]);
+    notifyListeners();
+  }
 
   Future<void> updateReminders(ReminderPreference reminders) async {
     _reminders = reminders;
@@ -423,6 +494,7 @@ class AppState extends ChangeNotifier {
             waterEntries: _waterEntries,
             workouts: _workouts,
             weightEntries: _weightEntries,
+            dailySummaries: _dailySummaries,
           ),
         );
         await _healthDataRepository.saveDailyLogs(_dailyLogsByDate());
@@ -452,6 +524,7 @@ class AppState extends ChangeNotifier {
         idOf: (entry) => entry.id,
         createdAtOf: (entry) => entry.createdAt,
       );
+      _dailySummaries = cloudSnapshot.dailySummaries;
       _recalculateMetrics();
       await Future.wait([
         _persistMeals(),
@@ -459,7 +532,6 @@ class AppState extends ChangeNotifier {
         _persistWorkouts(),
         _persistWeightEntries(),
       ]);
-      await WaterStorageService.saveWater(_metrics.waterMl);
       _lastSyncedAt = DateTime.now();
       await _storage.setString(
         _lastSyncedAtKey,
@@ -494,6 +566,7 @@ class AppState extends ChangeNotifier {
     _metrics = _buildMetrics(
       profile: _profile,
       meals: _meals,
+      dailySummaries: _dailySummaries,
       waterMl: _waterForDay(),
       workouts: _workouts,
       weightEntries: _weightEntries,
@@ -619,6 +692,7 @@ class AppState extends ChangeNotifier {
   static HealthMetrics _buildMetrics({
     required UserProfile profile,
     required List<MealEntry> meals,
+    required List<DailyNutritionSummary> dailySummaries,
     required int waterMl,
     required List<WorkoutEntry> workouts,
     required List<WeightEntry> weightEntries,
@@ -626,16 +700,23 @@ class AppState extends ChangeNotifier {
   }) {
     final today = DateTime.now();
     final todayMeals = meals.where((meal) => _isSameDay(meal.createdAt, today));
-    final calories = todayMeals.fold<int>(
-      0,
-      (total, meal) => total + meal.calories,
-    );
-    final carbs = todayMeals.fold<int>(0, (total, meal) => total + meal.carbs);
-    final fat = todayMeals.fold<int>(0, (total, meal) => total + meal.fat);
-    final protein = todayMeals.fold<int>(
-      0,
-      (total, meal) => total + meal.protein,
-    );
+    final todaySummary = todayMeals.isEmpty
+        ? dailySummaries
+              .where((summary) => summary.dateId == _dateId(today))
+              .firstOrNull
+        : null;
+    final calories =
+        todaySummary?.calories ??
+        todayMeals.fold<int>(0, (total, meal) => total + meal.calories);
+    final carbs =
+        todaySummary?.carbs ??
+        todayMeals.fold<int>(0, (total, meal) => total + meal.carbs);
+    final fat =
+        todaySummary?.fat ??
+        todayMeals.fold<int>(0, (total, meal) => total + meal.fat);
+    final protein =
+        todaySummary?.protein ??
+        todayMeals.fold<int>(0, (total, meal) => total + meal.protein);
     final latestWeight = weightEntries.isEmpty
         ? profile.weightKg
         : weightEntries.first.weightKg;
@@ -662,6 +743,20 @@ class AppState extends ChangeNotifier {
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
     return '${date.year}-$month-$day';
+  }
+
+  static DailyNutritionSummary _nutritionSummaryFromMeals(
+    DateTime day,
+    Iterable<MealEntry> meals,
+  ) {
+    return DailyNutritionSummary(
+      dateId: _dateId(day),
+      date: DateTime(day.year, day.month, day.day),
+      calories: meals.fold<int>(0, (total, meal) => total + meal.calories),
+      protein: meals.fold<int>(0, (total, meal) => total + meal.protein),
+      carbs: meals.fold<int>(0, (total, meal) => total + meal.carbs),
+      fat: meals.fold<int>(0, (total, meal) => total + meal.fat),
+    );
   }
 
   double _bmiForWeight(double weightKg) {
@@ -695,5 +790,27 @@ class AppState extends ChangeNotifier {
         .where((part) => part.isNotEmpty);
     final initials = parts.take(2).map((part) => part[0].toUpperCase()).join();
     return initials.isEmpty ? 'HU' : initials;
+  }
+
+  static void _checkIntRange(
+    int value, {
+    required String field,
+    required int min,
+    required int max,
+  }) {
+    if (value < min || value > max) {
+      throw ArgumentError.value(value, field, 'Must be between $min and $max.');
+    }
+  }
+
+  static void _checkDoubleRange(
+    double value, {
+    required String field,
+    required double min,
+    required double max,
+  }) {
+    if (value < min || value > max) {
+      throw ArgumentError.value(value, field, 'Must be between $min and $max.');
+    }
   }
 }

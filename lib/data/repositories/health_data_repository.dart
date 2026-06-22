@@ -9,24 +9,28 @@ class HealthDataSnapshot {
     required this.waterEntries,
     required this.workouts,
     required this.weightEntries,
+    required this.dailySummaries,
   });
 
   const HealthDataSnapshot.empty()
     : meals = const [],
       waterEntries = const [],
       workouts = const [],
-      weightEntries = const [];
+      weightEntries = const [],
+      dailySummaries = const [];
 
   final List<MealEntry> meals;
   final List<WaterEntry> waterEntries;
   final List<WorkoutEntry> workouts;
   final List<WeightEntry> weightEntries;
+  final List<DailyNutritionSummary> dailySummaries;
 
   bool get isEmpty =>
       meals.isEmpty &&
       waterEntries.isEmpty &&
       workouts.isEmpty &&
-      weightEntries.isEmpty;
+      weightEntries.isEmpty &&
+      dailySummaries.isEmpty;
 }
 
 class HealthDataRepository {
@@ -65,20 +69,29 @@ class HealthDataRepository {
           .orderBy('createdAt', descending: true)
           .get(),
       userDoc.collection('weight').orderBy('createdAt', descending: true).get(),
+      userDoc.collection('dailyLogs').orderBy('date', descending: true).get(),
     ]);
 
     return HealthDataSnapshot(
       meals: results[0].docs
-          .map((doc) => MealEntry.fromJson(doc.data()))
+          .map((doc) => MealEntry.fromJson({...doc.data(), 'id': doc.id}))
           .toList(),
       waterEntries: results[1].docs
-          .map((doc) => WaterEntry.fromJson(doc.data()))
+          .map((doc) => WaterEntry.fromJson({...doc.data(), 'id': doc.id}))
           .toList(),
       workouts: results[2].docs
-          .map((doc) => WorkoutEntry.fromJson(doc.data()))
+          .map((doc) => WorkoutEntry.fromJson({...doc.data(), 'id': doc.id}))
           .toList(),
       weightEntries: results[3].docs
-          .map((doc) => WeightEntry.fromJson(doc.data()))
+          .map((doc) => WeightEntry.fromJson({...doc.data(), 'id': doc.id}))
+          .toList(),
+      dailySummaries: results[4].docs
+          .map(
+            (doc) => DailyNutritionSummary.fromJson({
+              ...doc.data(),
+              'dateId': doc.id,
+            }),
+          )
           .toList(),
     );
   }
@@ -97,6 +110,10 @@ class HealthDataRepository {
 
   Future<void> saveWorkout(WorkoutEntry workout) {
     return _setDocument('workouts', workout.id, workout.toJson());
+  }
+
+  Future<void> deleteWorkout(String workoutId) {
+    return _deleteDocument('workouts', workoutId);
   }
 
   Future<void> saveWeight(WeightEntry entry) {

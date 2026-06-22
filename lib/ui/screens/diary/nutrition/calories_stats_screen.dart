@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:health_track_app/core/state/app_scope.dart';
-import 'package:health_track_app/data/models/meal_model.dart';
-import 'package:health_track_app/data/services/meals_storage_service.dart';
+import 'package:health_track_app/domain/models/health_entry.dart';
 import 'package:health_track_app/ui/screens/diary/nutrition/add_meal_screen.dart';
 import 'package:health_track_app/ui/screens/diary/widgets/diary_ui.dart';
 
@@ -15,14 +14,6 @@ class CaloriesStatsScreen extends StatefulWidget {
 }
 
 class _CaloriesStatsScreenState extends State<CaloriesStatsScreen> {
-  late Future<List<MealModel>> _mealsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _mealsFuture = MealStorageService.getMeals();
-  }
-
   Future<void> _openAddMeal() async {
     final didSave = await Navigator.push<bool>(
       context,
@@ -30,16 +21,31 @@ class _CaloriesStatsScreenState extends State<CaloriesStatsScreen> {
     );
 
     if (didSave != true || !mounted) return;
-    setState(() => _mealsFuture = MealStorageService.getMeals());
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final metrics = AppScope.of(context).metrics;
-    final caloriesLeft = (2100 - metrics.calories).clamp(0, 2100);
+    final appState = AppScope.of(context);
+    final targetDate = widget.date ?? DateTime.now();
+    final meals = appState.meals
+        .where((meal) => _isSameDay(meal.createdAt, targetDate))
+        .toList();
+    final nutrition = appState.nutritionForDay(targetDate);
+    final calories = nutrition.calories;
+    final carbs = nutrition.carbs;
+    final protein = nutrition.protein;
+    final fat = nutrition.fat;
+    final calorieTarget = appState.profile.dailyCalorieTarget;
+    final proteinTarget = appState.profile.dailyProteinTarget;
+    final caloriesLeft = (calorieTarget - calories).clamp(0, calorieTarget);
+    final mealGroups = {
+      for (final type in MealType.values)
+        type: meals.where((meal) => meal.type == type).toList(),
+    };
 
     return DiaryPageScaffold(
-      title: 'Calories',
+      title: _isToday(targetDate) ? 'Calories' : _dateTitle(targetDate),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add_rounded),
         label: const Text('Meal'),
@@ -50,8 +56,8 @@ class _CaloriesStatsScreenState extends State<CaloriesStatsScreen> {
           icon: Icons.local_fire_department_rounded,
           color: const Color(0xFFFF7A1A),
           title: 'Food intake',
-          value: '${metrics.calories} kcal',
-          subtitle: '$caloriesLeft kcal left today',
+          value: '$calories kcal',
+          subtitle: '$caloriesLeft kcal left',
         ),
         const SizedBox(height: 16),
         Row(
@@ -59,7 +65,7 @@ class _CaloriesStatsScreenState extends State<CaloriesStatsScreen> {
             Expanded(
               child: DiaryStatTile(
                 label: 'Carbs',
-                value: '${metrics.carbs}g',
+                value: '${carbs}g',
                 icon: Icons.rice_bowl_rounded,
                 color: const Color(0xFFE84D89),
               ),
@@ -68,7 +74,7 @@ class _CaloriesStatsScreenState extends State<CaloriesStatsScreen> {
             Expanded(
               child: DiaryStatTile(
                 label: 'Protein',
-                value: '${metrics.protein}g',
+                value: '${protein}g',
                 icon: Icons.egg_alt_rounded,
                 color: const Color(0xFF32C74E),
               ),
@@ -78,122 +84,306 @@ class _CaloriesStatsScreenState extends State<CaloriesStatsScreen> {
         const SizedBox(height: 12),
         DiaryStatTile(
           label: 'Fat',
-          value: '${metrics.fat}g',
+          value: '${fat}g',
           icon: Icons.opacity_rounded,
           color: const Color(0xFF7357FF),
         ),
         const SizedBox(height: 16),
         DiaryProgressPanel(
           title: 'Calorie Goal',
-          value: metrics.calories / 2100,
+          value: calories / calorieTarget,
           color: const Color(0xFFFF7A1A),
-          caption: metrics.calories < 2100
-              ? 'Balanced day so far'
-              : 'Goal reached for today',
+          caption: calories < calorieTarget
+              ? '${((calories / calorieTarget) * 100).clamp(0, 999).round()}% of daily goal'
+              : 'Goal reached for this day',
         ),
         const SizedBox(height: 16),
-        FutureBuilder<List<MealModel>>(
-          future: _mealsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const _MealSkeleton();
-            }
-
-            final meals = snapshot.data ?? const <MealModel>[];
-            return DiaryPanel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Meals',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 12),
-                  if (meals.isEmpty)
-                    _EmptyMeals(onAddMeal: _openAddMeal)
-                  else
-                    ...meals.reversed.map(
-                      (meal) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.restaurant_rounded),
-                        title: Text(meal.name),
-                        subtitle: Text(
-                          '${meal.protein}g protein • ${meal.carbs}g carbs • ${meal.fat}g fat',
-                        ),
-                        trailing: Text(
-                          '${meal.calories} kcal',
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            );
+        _MacroTargetsPanel(
+          calories: calories,
+          calorieTarget: calorieTarget,
+          protein: protein,
+          proteinTarget: proteinTarget,
+          carbs: carbs,
+          fat: fat,
+        ),
+        const SizedBox(height: 16),
+        _MealBreakdownPanel(mealGroups: mealGroups),
+        const SizedBox(height: 16),
+        _MealsPanel(
+          meals: meals,
+          onAddMeal: _openAddMeal,
+          onDeleteMeal: (meal) async {
+            await appState.deleteMeal(meal.id);
+            if (mounted) setState(() {});
           },
+        ),
+      ],
+    );
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isToday(DateTime day) => _isSameDay(day, DateTime.now());
+
+  String _dateTitle(DateTime date) {
+    return 'Calories ${date.day}/${date.month}';
+  }
+}
+
+class _MacroTargetsPanel extends StatelessWidget {
+  const _MacroTargetsPanel({
+    required this.calories,
+    required this.calorieTarget,
+    required this.protein,
+    required this.proteinTarget,
+    required this.carbs,
+    required this.fat,
+  });
+
+  final int calories;
+  final int calorieTarget;
+  final int protein;
+  final int proteinTarget;
+  final int carbs;
+  final int fat;
+
+  @override
+  Widget build(BuildContext context) {
+    return DiaryPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Daily targets',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 14),
+          _TargetRow(
+            label: 'Calories',
+            value: calories,
+            target: calorieTarget,
+            suffix: 'kcal',
+            color: const Color(0xFFFF7A1A),
+          ),
+          const SizedBox(height: 12),
+          _TargetRow(
+            label: 'Protein',
+            value: protein,
+            target: proteinTarget,
+            suffix: 'g',
+            color: const Color(0xFF32C74E),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Macros logged: ${carbs}g carbs • ${fat}g fat',
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.62),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TargetRow extends StatelessWidget {
+  const _TargetRow({
+    required this.label,
+    required this.value,
+    required this.target,
+    required this.suffix,
+    required this.color,
+  });
+
+  final String label;
+  final int value;
+  final int target;
+  final String suffix;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),
+            const Spacer(),
+            Text(
+              '$value / $target $suffix',
+              style: TextStyle(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.64),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            minHeight: 8,
+            value: target == 0 ? 0 : (value / target).clamp(0.0, 1.0),
+            backgroundColor: color.withValues(alpha: 0.12),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
         ),
       ],
     );
   }
 }
 
-class _MealSkeleton extends StatelessWidget {
-  const _MealSkeleton();
+class _MealBreakdownPanel extends StatelessWidget {
+  const _MealBreakdownPanel({required this.mealGroups});
+
+  final Map<MealType, List<MealEntry>> mealGroups;
 
   @override
   Widget build(BuildContext context) {
     return DiaryPanel(
       child: Column(
-        children: List.generate(3, (index) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: index == 2 ? 0 : 12),
-            child: Row(
-              children: [
-                _SkeletonBox(width: 42, height: 42),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SkeletonBox(width: double.infinity, height: 12),
-                      const SizedBox(height: 8),
-                      _SkeletonBox(width: 150, height: 10),
-                    ],
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Meal breakdown',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 12),
+          ...MealType.values.map((type) {
+            final meals = mealGroups[type] ?? const <MealEntry>[];
+            final calories = meals.fold<int>(
+              0,
+              (total, meal) => total + meal.calories,
+            );
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Icon(_mealTypeIcon(type), color: _mealTypeColor(type)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _mealTypeLabel(type),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                  Text(
+                    '${meals.length} • $calories kcal',
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.62),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
 }
 
-class _SkeletonBox extends StatelessWidget {
-  const _SkeletonBox({required this.width, required this.height});
+class _MealsPanel extends StatelessWidget {
+  const _MealsPanel({
+    required this.meals,
+    required this.onAddMeal,
+    required this.onDeleteMeal,
+  });
 
-  final double width;
-  final double height;
+  final List<MealEntry> meals;
+  final VoidCallback onAddMeal;
+  final ValueChanged<MealEntry> onDeleteMeal;
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.35, end: 1),
-      duration: const Duration(milliseconds: 800),
-      curve: Curves.easeInOut,
-      builder: (context, value, child) {
-        return Opacity(opacity: value, child: child);
-      },
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(10),
-        ),
+    return DiaryPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Meals',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 12),
+          if (meals.isEmpty)
+            _EmptyMeals(onAddMeal: onAddMeal)
+          else
+            ...meals.map(
+              (meal) => Dismissible(
+                key: ValueKey(meal.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE84D4D).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFE84D4D),
+                  ),
+                ),
+                onDismissed: (_) => onDeleteMeal(meal),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    _mealTypeIcon(meal.type),
+                    color: _mealTypeColor(meal.type),
+                  ),
+                  title: Text(meal.name),
+                  subtitle: Text(
+                    '${_mealTypeLabel(meal.type)} • ${meal.protein}g protein • ${meal.carbs}g carbs • ${meal.fat}g fat',
+                  ),
+                  trailing: Text(
+                    '${meal.calories} kcal',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
+}
+
+String _mealTypeLabel(MealType type) {
+  return switch (type) {
+    MealType.breakfast => 'Breakfast',
+    MealType.lunch => 'Lunch',
+    MealType.dinner => 'Dinner',
+    MealType.snack => 'Snack',
+  };
+}
+
+IconData _mealTypeIcon(MealType type) {
+  return switch (type) {
+    MealType.breakfast => Icons.free_breakfast_rounded,
+    MealType.lunch => Icons.lunch_dining_rounded,
+    MealType.dinner => Icons.dinner_dining_rounded,
+    MealType.snack => Icons.cookie_rounded,
+  };
+}
+
+Color _mealTypeColor(MealType type) {
+  return switch (type) {
+    MealType.breakfast => const Color(0xFFFF7A1A),
+    MealType.lunch => const Color(0xFF32C74E),
+    MealType.dinner => const Color(0xFF7357FF),
+    MealType.snack => const Color(0xFFE84D89),
+  };
 }
 
 class _EmptyMeals extends StatelessWidget {
