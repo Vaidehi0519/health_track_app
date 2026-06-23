@@ -30,7 +30,7 @@ class _AddWaterScreenState extends State<AddWaterScreen> {
       return;
     }
 
-    await AppScope.of(context).addWater(amount);
+    await AppScope.read(context).addWater(amount);
     if (!mounted) return;
     showDiarySavedMessage(context, 'Water added');
     Navigator.pop(context, true);

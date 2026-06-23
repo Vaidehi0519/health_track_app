@@ -17,7 +17,7 @@ class WaterStatsScreen extends StatelessWidget {
       title: 'Water Stats',
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final appState = AppScope.of(context);
+          final appState = AppScope.read(context);
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddWaterScreen()),

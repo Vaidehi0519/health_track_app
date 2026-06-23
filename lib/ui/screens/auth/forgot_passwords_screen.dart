@@ -26,7 +26,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isSending = true);
     try {
-      await AppScope.of(context).resetPassword(_emailController.text.trim());
+      await AppScope.read(context).resetPassword(_emailController.text.trim());
       if (!mounted) return;
       setState(() => _isSending = false);
       AppFeedback.showSnackBar(context, 'Reset link sent');

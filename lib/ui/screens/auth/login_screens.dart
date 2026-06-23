@@ -35,7 +35,7 @@ class _LoginScreensState extends State<LoginScreens> {
 
     setState(() => _isLoading = true);
     try {
-      await AppScope.of(context).signIn(
+      await AppScope.read(context).signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
@@ -55,7 +55,7 @@ class _LoginScreensState extends State<LoginScreens> {
   Future<void> _googleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      await AppScope.of(context).signInWithGoogle();
+      await AppScope.read(context).signInWithGoogle();
       if (!mounted) return;
       setState(() => _isLoading = false);
       Navigator.pushReplacement(

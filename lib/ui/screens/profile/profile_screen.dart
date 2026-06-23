@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:health_track_app/core/state/app_scope.dart';
 import 'package:health_track_app/core/theme/app_theme.dart';
 import 'package:health_track_app/core/utils/app_feedback.dart';
+import 'package:health_track_app/domain/models/health_entry.dart';
 import 'package:health_track_app/ui/screens/auth/welcome_screen.dart';
 import 'package:health_track_app/ui/screens/profile/edit_profilescreen.dart';
+import 'package:health_track_app/ui/screens/profile/history_screen.dart';
 import 'package:health_track_app/ui/screens/settings/setting_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,11 +18,9 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String _bio = 'Building healthier routines one small win at a time.';
   double _goalProgress = 0.68;
-  int _workoutMinutes = 42;
-  int _caloriesBurned = 420;
 
   Future<void> _openEditProfile() async {
-    final appState = AppScope.of(context);
+    final appState = AppScope.read(context);
     final result = await Navigator.push<EditProfileResult>(
       context,
       MaterialPageRoute(
@@ -46,38 +46,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _addWaterCup() async {
-    await AppScope.of(context).addWater(250);
+    await AppScope.read(context).addWater(250);
     setState(() => _goalProgress = (_goalProgress + 0.04).clamp(0, 1));
     if (!mounted) return;
     AppFeedback.showSnackBar(context, 'Water cup added');
   }
 
-  void _logWorkout() {
+  Future<void> _logWorkout() async {
+    await AppScope.read(context).addWorkout(
+      name: 'Quick workout',
+      type: WorkoutType.cardio,
+      minutes: 10,
+      caloriesBurned: 70,
+    );
+    if (!mounted) return;
     setState(() {
-      _workoutMinutes += 10;
-      _caloriesBurned += 70;
       _goalProgress = (_goalProgress + 0.06).clamp(0, 1);
     });
 
     AppFeedback.showSnackBar(context, 'Workout added');
   }
 
+  void _openHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const HistoryScreen()),
+    );
+  }
+
   void _resetProgress() {
     setState(() {
       _goalProgress = 0;
-      _workoutMinutes = 0;
-      _caloriesBurned = 0;
     });
 
     AppFeedback.showSnackBar(context, 'Today\'s progress reset');
   }
 
-  void _showComingSoon(String feature) {
-    AppFeedback.showSnackBar(context, '$feature coming soon');
-  }
-
   Future<void> _logout() async {
-    await AppScope.of(context).signOut();
+    await AppScope.read(context).signOut();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
@@ -93,6 +99,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final metrics = appState.metrics;
     final profile = appState.profile;
     final waterCups = (metrics.waterMl / 250).round();
+    final today = DateTime.now();
+    final todayWorkouts = appState.workouts.where((workout) {
+      return workout.createdAt.year == today.year &&
+          workout.createdAt.month == today.month &&
+          workout.createdAt.day == today.day;
+    });
+    final workoutMinutes = todayWorkouts.fold<int>(
+      0,
+      (total, workout) => total + workout.minutes,
+    );
+    final caloriesBurned = todayWorkouts.fold<int>(
+      0,
+      (total, workout) => total + workout.caloriesBurned,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -181,7 +201,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: _MetricTile(
                     icon: Icons.directions_run_rounded,
                     label: 'Workout',
-                    value: '$_workoutMinutes min',
+                    value: '$workoutMinutes min',
                     color: colorScheme.secondary,
                   ),
                 ),
@@ -191,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _MetricTile(
               icon: Icons.local_fire_department_rounded,
               label: 'Calories burned',
-              value: '$_caloriesBurned kcal',
+              value: '$caloriesBurned kcal',
               color: const Color(0xFFFF7A1A),
               wide: true,
             ),
@@ -199,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _ActionPanel(
               onAddWater: _addWaterCup,
               onLogWorkout: _logWorkout,
-              onViewHistory: () => _showComingSoon('Health history'),
+              onViewHistory: _openHistory,
             ),
           ],
         ),

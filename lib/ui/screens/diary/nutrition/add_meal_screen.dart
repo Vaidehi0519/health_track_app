@@ -59,7 +59,7 @@ class _AddMealScreenState extends State<AddMealScreen> {
       return;
     }
 
-    await AppScope.of(context).addMeal(
+    await AppScope.read(context).addMeal(
       name: name,
       type: _mealType,
       calories: calories!,

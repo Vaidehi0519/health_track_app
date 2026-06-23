@@ -13,7 +13,7 @@ class ActivityScreen extends StatefulWidget {
 
 class _ActivityScreenState extends State<ActivityScreen> {
   Future<void> _showWorkoutSheet() async {
-    final appState = AppScope.of(context);
+    final appState = AppScope.read(context);
     final nameController = TextEditingController(text: 'Evening workout');
     final minutesController = TextEditingController(text: '30');
     final caloriesController = TextEditingController(text: '180');
@@ -107,14 +107,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
                           if (!(formKey.currentState?.validate() ?? false)) {
                             return;
                           }
+                          final navigator = Navigator.of(context);
+                          final route = ModalRoute.of(context);
                           await appState.addWorkout(
                             name: nameController.text.trim(),
                             type: type,
                             minutes: int.parse(minutesController.text),
                             caloriesBurned: int.parse(caloriesController.text),
                           );
-                          if (context.mounted) {
-                            Navigator.pop(context);
+                          if (navigator.mounted &&
+                              (route?.isCurrent ?? false)) {
+                            navigator.pop();
                           }
                         },
                         icon: const Icon(Icons.check_rounded),

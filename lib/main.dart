@@ -15,27 +15,57 @@ Future<void> main() async {
   runApp(MyApp(appState: appState));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key, required this.appState});
 
   final AppState appState;
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late ThemeMode _themeMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeMode = widget.appState.themeMode;
+    widget.appState.addListener(_handleAppStateChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant MyApp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.appState == widget.appState) return;
+    oldWidget.appState.removeListener(_handleAppStateChanged);
+    _themeMode = widget.appState.themeMode;
+    widget.appState.addListener(_handleAppStateChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.appState.removeListener(_handleAppStateChanged);
+    super.dispose();
+  }
+
+  void _handleAppStateChanged() {
+    final nextThemeMode = widget.appState.themeMode;
+    if (nextThemeMode == _themeMode) return;
+    setState(() => _themeMode = nextThemeMode);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AppScope(
-      state: appState,
-      child: Builder(
-        builder: (context) {
-          final state = AppScope.of(context);
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Health Tracker',
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
-            themeMode: state.themeMode,
-            home: const SplashScreen(),
-          );
-        },
+      state: widget.appState,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Health Tracker',
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: _themeMode,
+        home: const SplashScreen(),
       ),
     );
   }

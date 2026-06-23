@@ -22,7 +22,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _showMealEditor([MealEntry? meal]) async {
-    final appState = AppScope.of(context);
+    final appState = AppScope.read(context);
     final nameController = TextEditingController(text: meal?.name ?? '');
     final caloriesController = TextEditingController(
       text: '${meal?.calories ?? ''}',
@@ -69,8 +69,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             IconButton(
                               tooltip: 'Delete meal',
                               onPressed: () async {
+                                final navigator = Navigator.of(context);
+                                final route = ModalRoute.of(context);
                                 await appState.deleteMeal(meal.id);
-                                if (context.mounted) Navigator.pop(context);
+                                if (navigator.mounted &&
+                                    (route?.isCurrent ?? false)) {
+                                  navigator.pop();
+                                }
                               },
                               icon: const Icon(Icons.delete_outline_rounded),
                             ),
@@ -161,6 +166,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             fat: int.parse(fatController.text),
                             createdAt: meal?.createdAt ?? DateTime.now(),
                           );
+                          final navigator = Navigator.of(context);
+                          final route = ModalRoute.of(context);
                           if (meal == null) {
                             await appState.addMeal(
                               name: nextMeal.name,
@@ -173,8 +180,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           } else {
                             await appState.updateMeal(nextMeal);
                           }
-                          if (context.mounted) {
-                            Navigator.pop(context);
+                          if (navigator.mounted &&
+                              (route?.isCurrent ?? false)) {
+                            navigator.pop();
                           }
                         },
                         icon: const Icon(Icons.check_rounded),
@@ -227,19 +235,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     icon: Icons.local_fire_department_rounded,
                     label: 'Calories',
                     value: '${appState.dailyCalories}',
-                    subtitle: 'Target ${profile.dailyCalorieTarget}',
+                    subtitle: 'Target ${appState.dailyCalorieTarget}',
                     color: AppColors.accent,
                     progress:
-                        appState.dailyCalories / profile.dailyCalorieTarget,
+                        appState.dailyCalories / appState.dailyCalorieTarget,
                   ),
                   HealthStatCard(
                     icon: Icons.fitness_center_rounded,
                     label: 'Protein',
                     value: '${appState.dailyProtein}g',
-                    subtitle: 'Target ${profile.dailyProteinTarget}g',
+                    subtitle: 'Target ${appState.dailyProteinTarget}g',
                     color: AppColors.secondary,
                     progress:
-                        appState.dailyProtein / profile.dailyProteinTarget,
+                        appState.dailyProtein / appState.dailyProteinTarget,
                   ),
                   HealthStatCard(
                     icon: Icons.water_drop_rounded,
@@ -254,7 +262,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     label: 'BMI',
                     value: appState.bmi.toStringAsFixed(1),
                     subtitle:
-                        '${profile.weightKg.toStringAsFixed(1)}kg current',
+                        '${appState.currentWeightKg.toStringAsFixed(1)}kg - ${appState.bmiCategory}',
                     color: AppColors.purple,
                   ),
                 ],

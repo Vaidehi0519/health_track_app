@@ -102,12 +102,25 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
+          enableFeedback: false,
           minimumSize: const Size.fromHeight(54),
           textStyle: const TextStyle(fontWeight: FontWeight.w900),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(enableFeedback: false),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(enableFeedback: false),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(enableFeedback: false),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(enableFeedback: false),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 72,

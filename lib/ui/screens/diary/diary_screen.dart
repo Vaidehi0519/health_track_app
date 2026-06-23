@@ -44,7 +44,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
   }
 
   Future<void> _quickAdd(_DiaryAction action) async {
-    final appState = AppScope.of(context);
+    final appState = AppScope.read(context);
 
     switch (action) {
       case _DiaryAction.water:
@@ -72,7 +72,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
   }
 
   Future<void> _openScreen(Widget screen) async {
-    final appState = AppScope.of(context);
+    final appState = AppScope.read(context);
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
@@ -82,7 +82,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
   }
 
   void _showQuickAddSheet() {
-    final appState = AppScope.of(context);
+    final appState = AppScope.read(context);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,

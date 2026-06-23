@@ -175,7 +175,27 @@ class AppState extends ChangeNotifier {
   int get dailyProtein => nutritionForDay(DateTime.now()).protein;
   int get dailyWorkoutMinutes =>
       _workoutsForDay().fold(0, (total, workout) => total + workout.minutes);
-  double get bmi => _profile.bmi;
+  double get currentWeightKg => _metrics.weight;
+  double get bmi => _bmiForWeight(currentWeightKg);
+  String get bmiCategory {
+    final value = bmi;
+    if (value <= 0) return 'Unknown';
+    if (value < 18.5) return 'Underweight';
+    if (value < 25) return 'Healthy';
+    if (value < 30) return 'Overweight';
+    return 'Obese';
+  }
+
+  int get dailyCalorieTarget {
+    final bmr =
+        10 * currentWeightKg + 6.25 * _profile.heightCm - 5 * _profile.age;
+    final adjusted = _profile.gender.toLowerCase() == 'male'
+        ? bmr + 5
+        : bmr - 161;
+    return (adjusted * 1.45).round();
+  }
+
+  int get dailyProteinTarget => (currentWeightKg * 1.6).round();
   bool get isOfflineReady => true;
   bool get canCloudSync => _healthDataRepository.canSync;
 

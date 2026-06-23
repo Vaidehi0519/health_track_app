@@ -45,7 +45,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     setState(() => _isCreatingAccount = true);
     try {
-      await AppScope.of(context).signUp(
+      await AppScope.read(context).signUp(
         name: _nameController.text,
         email: _emailController.text,
         password: _passwordController.text,

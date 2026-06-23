@@ -34,6 +34,17 @@ void main() {
     expect(appState.waterEntries, isEmpty);
   });
 
+  test('calculates BMI from latest logged weight and profile height', () async {
+    final appState = await AppState.load();
+
+    await appState.addWeight(65.0);
+
+    expect(appState.currentWeightKg, 65.0);
+    expect(appState.bmi, closeTo(24.2, 0.05));
+    expect(appState.bmiCategory, 'Healthy');
+    expect(appState.dailyProteinTarget, 104);
+  });
+
   test(
     'signOut clears user health data from memory and local storage',
     () async {

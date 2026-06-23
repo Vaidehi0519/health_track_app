@@ -20,8 +20,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Future<void> _addWeight() async {
-    final appState = AppScope.of(context);
-    _weightController.text = appState.profile.weightKg.toStringAsFixed(1);
+    final appState = AppScope.read(context);
+    _weightController.text = appState.currentWeightKg.toStringAsFixed(1);
     await showDialog<void>(
       context: context,
       builder: (context) {
@@ -44,8 +44,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
               onPressed: () async {
                 final weight = double.tryParse(_weightController.text);
                 if (weight == null || weight <= 0) return;
+                final navigator = Navigator.of(context);
+                final route = ModalRoute.of(context);
                 await appState.addWeight(weight);
-                if (context.mounted) Navigator.pop(context);
+                if (navigator.mounted && (route?.isCurrent ?? false)) {
+                  navigator.pop();
+                }
               },
               child: const Text('Save'),
             ),
@@ -58,7 +62,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = AppScope.of(context);
-    final profile = appState.profile;
     final values = appState.weightEntries
         .take(12)
         .map((entry) => entry.weightKg)
@@ -87,7 +90,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   child: HealthStatCard(
                     icon: Icons.monitor_weight_rounded,
                     label: 'Weight',
-                    value: '${profile.weightKg.toStringAsFixed(1)}kg',
+                    value: '${appState.currentWeightKg.toStringAsFixed(1)}kg',
                     color: AppColors.purple,
                   ),
                 ),
@@ -97,7 +100,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     icon: Icons.health_and_safety_rounded,
                     label: 'BMI',
                     value: appState.bmi.toStringAsFixed(1),
-                    subtitle: _bmiLabel(appState.bmi),
+                    subtitle: appState.bmiCategory,
                     color: AppColors.primary,
                   ),
                 ),
@@ -137,7 +140,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   ),
                   const SizedBox(height: 8),
                   TrendChart(
-                    values: values.isEmpty ? [profile.weightKg] : values,
+                    values: values.isEmpty
+                        ? [appState.currentWeightKg]
+                        : values,
                     color: AppColors.purple,
                   ),
                 ],
@@ -164,7 +169,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   ),
                   const SizedBox(height: 14),
                   LinearProgressIndicator(
-                    value: appState.dailyCalories / profile.dailyCalorieTarget,
+                    value: appState.dailyCalories / appState.dailyCalorieTarget,
                     minHeight: 10,
                     borderRadius: BorderRadius.circular(10),
                     color: AppColors.accent,
@@ -172,12 +177,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${appState.dailyCalories} of ${profile.dailyCalorieTarget} kcal',
+                    '${appState.dailyCalories} of ${appState.dailyCalorieTarget} kcal',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 16),
                   LinearProgressIndicator(
-                    value: appState.dailyProtein / profile.dailyProteinTarget,
+                    value: appState.dailyProtein / appState.dailyProteinTarget,
                     minHeight: 10,
                     borderRadius: BorderRadius.circular(10),
                     color: AppColors.secondary,
@@ -187,7 +192,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${appState.dailyProtein} of ${profile.dailyProteinTarget}g protein',
+                    '${appState.dailyProtein} of ${appState.dailyProteinTarget}g protein',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ],
@@ -197,12 +202,5 @@ class _InsightsScreenState extends State<InsightsScreen> {
         ),
       ),
     );
-  }
-
-  String _bmiLabel(double bmi) {
-    if (bmi < 18.5) return 'Below range';
-    if (bmi < 25) return 'Healthy range';
-    if (bmi < 30) return 'Above range';
-    return 'High range';
   }
 }
